@@ -433,7 +433,7 @@
         let appData = null;
         let masterKey = null;
         let currentLockLang = navigator.language.startsWith('es') ? 'es' : 'en';
-        let currentExchangeFilter = 'all';
+        let currentExchangeFilter = null; // Will be initialized by proximity
 
         const STORAGE_KEY = 'encryptedBudgetTrackerV1';
 
@@ -472,7 +472,6 @@
                 cardSav: "Ahorros",
                 cardRem: "Dinero Restante",
                 exTitle: "💡 Resumen de Conversiones y Gastos por Moneda",
-                exFilterAll: "Todos los periodos",
                 exTotalLbl: "Total Gastos en otra moneda:",
                 exChangeLbl: "Total a Cambiar",
                 btnCopy: "Copiar",
@@ -531,7 +530,6 @@
                 cardSav: "Savings",
                 cardRem: "Remaining Money",
                 exTitle: "💡 Currency Conversion & Expenses Summary",
-                exFilterAll: "All periods",
                 exTotalLbl: "Total Expenses in other currency:",
                 exChangeLbl: "Total to Change",
                 btnCopy: "Copy",
@@ -752,6 +750,7 @@
             document.getElementById('cfg-base').value = appData.config.baseCurrency;
             document.getElementById('cfg-alt').value = appData.config.altCurrencies.join(', ');
 
+            setDefaultExchangeFilter();
             applyStaticTranslations();
             buildDynamicUI();
             renderRateInputs();
@@ -759,6 +758,24 @@
             renderTables();
             calculateDashboard();
             checkDailyAutoUpdate();
+        }
+
+        function setDefaultExchangeFilter() {
+            const freq = appData.config.frequency;
+            const day = new Date().getDate();
+
+            if (freq === 'quincenal') {
+                // p1 = Quincena I, p2 = Quincena II
+                currentExchangeFilter = (day <= 15) ? 'p1' : 'p2';
+            } else if (freq === 'semanal') {
+                // p1 = Semana 1 (1-7), p2 = Semana 2 (8-14), p3 = Semana 3 (15-21), p4 = Semana 4 (22-31)
+                if (day <= 7) currentExchangeFilter = 'p1';
+                else if (day <= 14) currentExchangeFilter = 'p2';
+                else if (day <= 21) currentExchangeFilter = 'p3';
+                else currentExchangeFilter = 'p4';
+            } else {
+                currentExchangeFilter = 'p1';
+            }
         }
 
         function getActivePeriods() {
@@ -790,20 +807,17 @@
             const filterSelect = document.getElementById('exchange-filter');
             if(!filterSelect) return;
             
-            let currentVal = filterSelect.value || currentExchangeFilter;
-            filterSelect.innerHTML = `<option value="all">${t('exFilterAll')}</option>`;
+            const periods = getActivePeriods();
+            filterSelect.innerHTML = '';
             
-            getActivePeriods().forEach(p => {
+            periods.forEach(p => {
                 filterSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
             });
             
-            if([...filterSelect.options].some(opt => opt.value === currentVal)) {
-                filterSelect.value = currentVal;
-                currentExchangeFilter = currentVal;
-            } else {
-                filterSelect.value = 'all';
-                currentExchangeFilter = 'all';
+            if(!periods.some(p => p.id === currentExchangeFilter)) {
+                setDefaultExchangeFilter();
             }
+            filterSelect.value = currentExchangeFilter;
         }
 
         function changeExchangeFilter(val) {
@@ -915,7 +929,7 @@
 
         function updateFrequency() {
             appData.config.frequency = document.getElementById('cfg-frequency').value;
-            currentExchangeFilter = 'all';
+            setDefaultExchangeFilter();
             saveDataWithoutFullReset();
             buildDynamicUI();
             updateCurrencyDropdowns();
@@ -1240,10 +1254,8 @@
             let totalBaseEquivalentToChange = 0;
             let totalExpensesInOtherCurrency = {};
 
-            let periodsToCheck = getActivePeriods();
-            if (currentExchangeFilter !== 'all') {
-                periodsToCheck = periodsToCheck.filter(p => p.id === currentExchangeFilter);
-            }
+            // Strictly evaluate only the currently selected filtered period
+            let periodsToCheck = getActivePeriods().filter(p => p.id === currentExchangeFilter);
 
             periodsToCheck.forEach(p => {
                 let txs = appData.periods[p.id] || [];
