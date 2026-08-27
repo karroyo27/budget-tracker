@@ -1093,15 +1093,17 @@
                 
                 if (data && data.rates) {
                     let base = appData.config.baseCurrency.toUpperCase().trim();
-                    let baseToUsdRate = data.rates[base] || 1.00;
+                    let baseToUsd = data.rates[base] || 1.00;
 
-                    // Store all currencies relative to the active Base Currency
+                    // Almacenamos siempre las tasas relativas: 1 Moneda Base = X Moneda Destino
+                    appData.config.rates = { 'USD': 1.00 / baseToUsd };
+                    
                     appData.config.altCurrencies.forEach(alt => {
                         alt = alt.trim().toUpperCase();
                         if (data.rates[alt]) {
-                            let altToUsdRate = data.rates[alt];
-                            // Rate from Base to Alt: (1 Base = X Alt)
-                            let baseToAltRate = altToUsdRate / baseToUsdRate;
+                            let altToUsd = data.rates[alt];
+                            // Tasa relativa respecto a la base: (Alt / Base)
+                            let baseToAltRate = altToUsd / baseToUsd;
                             appData.config.rates[alt] = parseFloat(baseToAltRate.toFixed(4));
                         }
                     });
@@ -1115,7 +1117,7 @@
                     badge.innerHTML = 'Actualizado';
                     
                     if(isManualClick) {
-                        alert(appData.config.language === 'es' ? "¡Tipos de cambio actualizados exitosamente frente a tu moneda base!" : "Exchange rates successfully updated against your base currency!");
+                        alert(appData.config.language === 'es' ? "¡Tipos de cambio actualizados exitosamente!" : "Exchange rates successfully updated!");
                     }
                 }
             } catch (error) {
@@ -1132,19 +1134,20 @@
             const newBase = document.getElementById('cfg-base').value.trim().toUpperCase();
             if(newBase && newBase !== appData.config.baseCurrency) {
                 appData.config.baseCurrency = newBase;
-                fetchExchangeRates(false); // Refetch and re-scale against new base automatically
+                fetchExchangeRates(false);
             }
         }
 
         function renderRateInputs() {
             const container = document.getElementById('rates-container');
             const base = appData.config.baseCurrency;
+            let currenciesToShow = ['USD', ...appData.config.altCurrencies].map(c => c.trim().toUpperCase());
+            currenciesToShow = [...new Set(currencies)].filter(c => c !== base);
+
             container.innerHTML = `<label style="display: block; font-size: 12px; color: var(--text-light); margin-bottom: 6px;">${appData.config.language === 'es' ? 'Tasas de Cambio (1 ' + base + ' = X Moneda):' : 'Exchange Rates (1 ' + base + ' = X Currency):'}</label>`;
             
-            appData.config.altCurrencies.forEach(alt => {
-                alt = alt.trim().toUpperCase();
-                if(!alt || alt === base) return;
-                if(!appData.config.rates[alt]) appData.config.rates[alt] = 1.00;
+            currenciesToShow.forEach(alt => {
+                if(!appData.config.rates[alt]) appData.config.rates[alt] = (alt === 'USD' ? 0.002 : 1.00);
                 
                 container.innerHTML += `
                     <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
@@ -1157,7 +1160,7 @@
         }
 
         function updateCurrencyDropdowns() {
-            const currencies = [appData.config.baseCurrency, ...appData.config.altCurrencies.map(c => c.trim().toUpperCase())];
+            const currencies = [appData.config.baseCurrency, 'USD', ...appData.config.altCurrencies.map(c => c.trim().toUpperCase())];
             const uniqueCurrencies = [...new Set(currencies)];
             getActivePeriods().forEach(p => {
                 const select = document.getElementById(`curr-${p.id}`);
@@ -1241,7 +1244,11 @@
 
             let base = appData.config.baseCurrency;
             appData.config.rates[base] = 1.00;
-            appData.config.altCurrencies.forEach(alt => {
+
+            let currenciesToSave = ['USD', ...appData.config.altCurrencies].map(c => c.trim().toUpperCase());
+            currenciesToSave = [...new Set(currenciesToSave)].filter(c => c !== base);
+
+            currenciesToSave.forEach(alt => {
                 const input = document.getElementById(`rate-${alt}`);
                 if(input) {
                     appData.config.rates[alt] = parseFloat(input.value) || 1.00;
@@ -1264,7 +1271,7 @@
             }
         }
 
-        // --- Robust Multi-Currency Conversion Helpers (Base-Centric) ---
+        // --- Core Multi-Currency Conversion Engine (Pivote en Moneda Base) ---
         function convertCurrency(amount, fromCurr, toCurr, base, rates) {
             fromCurr = fromCurr.toUpperCase().trim();
             toCurr = toCurr.toUpperCase().trim();
@@ -1272,23 +1279,17 @@
 
             if (fromCurr === toCurr) return amount;
 
-            // Convert 'fromCurr' to 'base'
-            let amountInBase = amount;
-            if (fromCurr !== base) {
-                let rate = rates[fromCurr]; // 1 Base = X fromCurr
-                if (rate && rate > 0) {
-                    amountInBase = amount / rate;
-                }
-            }
+            // 1. Obtener tasa de 'fromCurr' respecto a la Base (1 Base = X fromCurr)
+            let rateFrom = (fromCurr === base) ? 1.00 : rates[fromCurr];
+            if (!rateFrom || rateFrom <= 0) rateFrom = 1.00;
 
-            // Convert 'base' to 'toCurr'
-            if (toCurr === base) return amountInBase;
-            let targetRate = rates[toCurr]; // 1 Base = X toCurr
-            if (targetRate && targetRate > 0) {
-                return amountInBase * targetRate;
-            }
+            // 2. Obtener tasa de 'toCurr' respecto a la Base (1 Base = X toCurr)
+            let rateTo = (toCurr === base) ? 1.00 : rates[toCurr];
+            if (!rateTo || rateTo <= 0) rateTo = 1.00;
 
-            return amountInBase;
+            // Convertir a Base primero, luego a Moneda Destino
+            let amountInBase = amount / rateFrom;
+            return amountInBase * rateTo;
         }
 
         function renderTables() {
@@ -1372,7 +1373,7 @@
             const base = appData.config.baseCurrency;
             const rates = appData.config.rates;
             const altCurrencies = appData.config.altCurrencies;
-            const allCurrencies = [base, ...altCurrencies];
+            const allCurrencies = [base, 'USD', ...altCurrencies];
             const uniqueCurrencies = [...new Set(allCurrencies)];
 
             getActivePeriods().forEach(p => {
@@ -1457,7 +1458,7 @@
                 txs.forEach(tx => {
                     if (['Gasto Fijo', 'Gasto Variable', 'Gasto Personal', 'Ahorro'].includes(tx.cat)) {
                         let c = tx.curr.toUpperCase().trim();
-                        if (c !== base && altCurrencies.map(x=>x.toUpperCase().trim()).includes(c)) {
+                        if (c !== base) {
                             let totalIncCurr = txs.filter(t => t.cat === 'Ingreso' && t.curr.toUpperCase().trim() === c).reduce((acc, t) => acc + t.amount, 0);
                             let totalExpCurr = txs.filter(t => ['Gasto Fijo', 'Gasto Variable', 'Gasto Personal', 'Ahorro'].includes(t.cat) && t.curr.toUpperCase().trim() === c).reduce((acc, t) => acc + t.amount, 0);
 
