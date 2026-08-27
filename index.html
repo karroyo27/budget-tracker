@@ -34,7 +34,6 @@
             -webkit-text-size-adjust: 100%;
         }
 
-        /* Lock Screen Overlay */
         #lock-screen {
             position: fixed;
             top: 0;
@@ -141,7 +140,6 @@
         .api-badge.success { border-color: #bbf7d0; color: var(--success); background: #f0fdf4; }
         .api-badge.loading { border-color: #fef08a; color: var(--warning); background: #fefce8; }
 
-        /* Tabs */
         .tabs {
             display: flex;
             gap: 6px;
@@ -173,7 +171,6 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* Period Section Containers */
         .period-section {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -205,7 +202,6 @@
             border-radius: 50%;
         }
 
-        /* Grid & Cards */
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -241,7 +237,6 @@
         .card-currency-label { font-size: 11px; color: var(--text-light); font-weight: 600; }
         .card-amount { font-size: 14px; font-weight: 600; }
 
-        /* Suggestion Box */
         .suggestion-box {
             background: #fff5f5;
             border: 1px solid #fed7d7;
@@ -253,7 +248,6 @@
         }
         .suggestion-box strong { font-weight: 600; }
 
-        /* Forms */
         .form-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -334,7 +328,6 @@
         .btn-danger { background-color: transparent; color: var(--danger); padding: 4px 8px; border: 1px solid transparent; font-weight: 600; }
         .btn-danger:hover { background-color: #fee2e2; border-color: #fca5a5; border-radius: 4px; }
 
-        /* Tables */
         .table-container {
             width: 100%;
             overflow-x: auto;
@@ -360,7 +353,6 @@
         .badge.gasto { color: var(--danger); background: #fef2f2; border: 1px solid #fecaca; }
         .badge.personal { color: var(--personal); background: #eff6ff; border: 1px solid #bfdbfe; }
 
-        /* Exchange Panel */
         .exchange-panel {
             background: #fffbeb;
             border: 1px solid #fde047;
@@ -402,7 +394,6 @@
             color: #713f12;
         }
 
-        /* History Reports */
         .report-section {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -471,7 +462,6 @@
 </head>
 <body>
 
-    <!-- LOCK SCREEN OVERLAY -->
     <div id="lock-screen">
         <div class="lock-card">
             <div class="lock-header-row">
@@ -501,13 +491,9 @@
         </div>
     </div>
 
-    <!-- TABS -->
     <div id="tabs-container" class="tabs"></div>
-
-    <!-- TAB CONTENTS -->
     <div id="tab-contents-container"></div>
 
-    <!-- HISTORY TAB -->
     <div id="history-tab-content" class="tab-content">
         <div class="history-controls">
             <div class="history-controls-group">
@@ -526,7 +512,6 @@
         <div id="history-reports-container"></div>
     </div>
 
-    <!-- CONFIG TAB -->
     <div id="config-tab-content" class="tab-content">
         <div class="card" style="max-width: 480px; margin: 0 auto; background: var(--card-bg); border-radius: 12px; padding: 24px;">
             <h2 id="txt-cfg-title" style="font-size: 16px; margin-bottom: 6px; font-weight: 600;">Configuración Avanzada</h2>
@@ -953,9 +938,6 @@
                 baseIndex = 0;
             }
 
-            // Por defecto siempre Actual + 1 (siguiente periodo, haciendo loop cíclico)
-            baseIndex = (baseIndex + 1) % periods.length;
-
             currentExchangeFilter = periods[baseIndex] ? periods[baseIndex].id : periods[0].id;
         }
 
@@ -1192,15 +1174,7 @@
                     }
                 });
 
-                // Blindaje estricto para evitar tasas en 1 cuando la base es CRC o hay divisas locales
-                if(base === 'CRC') {
-                    ratesMap['USD'] = 1 / bccrSale;
-                    ratesMap['CRC'] = 1.00;
-                } else {
-                    ratesMap[base] = 1.00;
-                    if(!ratesMap['CRC']) ratesMap['CRC'] = bccrSale;
-                }
-
+                ratesMap[base] = 1.00;
                 appData.config.rates = ratesMap;
                 appData.config.lastFetchDate = dateStr || new Date().toDateString();
                 
@@ -1237,7 +1211,7 @@
             let currenciesToShow = ['USD', 'CRC', ...appData.config.altCurrencies].map(c => c.trim().toUpperCase());
             currenciesToShow = [...new Set(currenciesToShow)].filter(c => c !== base);
 
-            container.innerHTML = `<label style="display: block; font-size: 11px; font-weight: 600; color: var(--text-light); margin-bottom: 6px; text-transform: uppercase;">${appData.config.language === 'es' ? 'Tasas de Cambio Configuradas:' : 'Configured Exchange Rates:'}</label>`;
+            container.innerHTML = `<label style="display: block; font-size: 11px; font-weight: 600; color: var(--text-light); margin-bottom: 6px; text-transform: uppercase;">${appData.config.language === 'es' ? 'Tasa de Cambio (1 USD en CRC):' : 'Exchange Rate (1 USD in CRC):'}</label>`;
             
             currenciesToShow.forEach(alt => {
                 if(!appData.config.rates[alt]) {
@@ -1246,8 +1220,8 @@
                 
                 container.innerHTML += `
                     <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
-                        <span style="font-weight: 500; min-width: 60px; font-size: 13px;">1 ${base} =</span>
-                        <input type="number" step="0.0001" id="rate-${alt}" value="${appData.config.rates[alt]}" style="flex: 1;">
+                        <span style="font-weight: 500; min-width: 60px; font-size: 13px;">1 USD =</span>
+                        <input type="number" step="0.01" id="rate-${alt}" value="${appData.config.rates[alt]}" style="flex: 1;">
                         <span style="font-weight: 500; min-width: 40px; font-size: 13px;">${alt}</span>
                     </div>
                 `;
@@ -1347,7 +1321,7 @@
             currenciesToSave.forEach(alt => {
                 const input = document.getElementById(`rate-${alt}`);
                 if(input) {
-                    appData.config.rates[alt] = parseFloat(input.value) || (alt === 'CRC' ? 505.00 : 1.00);
+                    appData.config.rates[alt] = parseFloat(input.value) || 505.00;
                 }
             });
 
@@ -1368,7 +1342,6 @@
             }
         }
 
-        // --- MOTOR DE CONVERSIÓN UNIFICADO Y SÓLIDO ---
         function convertCurrency(amount, fromCurr, toCurr, base, rates) {
             fromCurr = fromCurr.toUpperCase().trim();
             toCurr = toCurr.toUpperCase().trim();
@@ -1378,23 +1351,22 @@
 
             let crcRate = rates['CRC'] || 505.00;
 
-            // Si la base es USD (caso común)
-            if (base === 'USD') {
-                let amountInUSD = fromCurr === 'CRC' ? amount / crcRate : (fromCurr !== 'USD' ? amount / (rates[fromCurr] || 1.00) : amount);
-                if (toCurr === 'USD') return amountInUSD;
-                if (toCurr === 'CRC') return amountInUSD * crcRate;
-                return amountInUSD * (rates[toCurr] || 1.00);
-            } 
-            
-            // Si la base es CRC
-            if (base === 'CRC') {
-                let amountInCRC = fromCurr === 'USD' ? amount * crcRate : (fromCurr !== 'CRC' ? amount * (rates[fromCurr] || 1.00) : amount);
-                if (toCurr === 'CRC') return amountInCRC;
-                if (toCurr === 'USD') return amountInCRC / crcRate;
-                return amountInCRC / (rates[toCurr] || 1.00);
+            let amountInUSD = amount;
+            if (fromCurr === 'CRC') {
+                amountInUSD = amount / crcRate;
+            } else if (fromCurr !== 'USD') {
+                let r = rates[fromCurr] || 1.00;
+                amountInUSD = amount / r;
             }
 
-            return amount;
+            if (toCurr === 'USD') return amountInUSD;
+
+            if (toCurr === 'CRC') {
+                return amountInUSD * crcRate;
+            }
+
+            let targetRate = rates[toCurr] || 1.00;
+            return amountInUSD * targetRate;
         }
 
         function renderTables() {
@@ -1573,7 +1545,6 @@
 
                             const li = document.createElement('li');
                             if (currentLockLang === 'es') {
-                                // Bullets limpios sin mención de quincena
                                 li.append(document.createTextNode(`Gasto en `));
                                 const b1 = document.createElement('strong'); b1.textContent = formatMoney(tx.amount, c); li.append(b1);
                                 li.append(document.createTextNode(' para '));
@@ -1645,8 +1616,6 @@
                 container.appendChild(rowDiv);
             });
         }
-
-        // --- History Logic ---
 
         function manualArchive() {
             if(!confirm(t('archiveConfirm'))) return;
@@ -1801,7 +1770,6 @@
             `;
         }
 
-        // --- Utilities ---
         function formatMoney(amount, curr) {
             curr = curr.toUpperCase().trim();
             const symbols = {
