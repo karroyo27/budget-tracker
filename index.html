@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Content Security Policy optimizada para iOS / Safari -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src https://fonts.gstatic.com; connect-src https://open.er-api.com https://apis.gometa.org;">
     <title>Dashboard Financiero</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #ffffff;
+            --bg-color: #f7f6f3;
+            --card-bg: #ffffff;
             --text-color: #37352f;
             --text-light: #787774;
             --border-color: #e9e9e7;
@@ -41,7 +41,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(255, 255, 255, 0.98);
+            background: rgba(247, 246, 243, 0.98);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -49,13 +49,13 @@
             padding: 20px;
         }
         .lock-card {
-            background: var(--bg-color);
+            background: var(--card-bg);
             border: 1px solid var(--border-color);
-            border-radius: 8px;
+            border-radius: 12px;
             padding: 24px;
             width: 100%;
             max-width: 380px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
             text-align: center;
         }
         .lock-header-row {
@@ -73,7 +73,8 @@
         }
         .password-container input {
             width: 100%;
-            padding: 8px 60px 8px 12px;
+            padding: 10px 60px 10px 12px;
+            border-radius: 6px;
         }
         .toggle-password {
             position: absolute;
@@ -94,8 +95,8 @@
         .lock-error { color: var(--danger); font-size: 12px; margin-top: 8px; display: none; text-align: left; }
 
         .header {
-            margin-bottom: 20px;
-            padding-bottom: 10px;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
             border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
@@ -104,8 +105,8 @@
             gap: 10px;
         }
 
-        .header h1 { font-size: 24px; font-weight: 600; }
-        .header p { color: var(--text-light); font-size: 14px; text-transform: capitalize; }
+        .header h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.3px; }
+        .header p { color: var(--text-light); font-size: 13px; text-transform: capitalize; }
         
         .header-actions {
             display: flex;
@@ -114,35 +115,37 @@
         }
 
         .btn-lang {
-            background: var(--hover-bg);
+            background: var(--card-bg);
             border: 1px solid var(--border-color);
             color: var(--text-color);
-            padding: 4px 10px;
+            padding: 6px 12px;
             font-size: 12px;
-            border-radius: 12px;
+            border-radius: 16px;
             cursor: pointer;
             font-weight: 500;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
         }
-        .btn-lang:hover { background-color: var(--border-color); }
+        .btn-lang:hover { background-color: var(--hover-bg); }
 
         .api-badge {
             font-size: 11px;
-            padding: 4px 8px;
-            border-radius: 12px;
-            background: var(--hover-bg);
+            padding: 6px 10px;
+            border-radius: 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
             color: var(--text-light);
             display: inline-flex;
             align-items: center;
             gap: 4px;
         }
-        .api-badge.success { background: #e6f4f1; color: var(--success); }
-        .api-badge.loading { background: #fffbe6; color: var(--warning); }
+        .api-badge.success { border-color: #bbf7d0; color: var(--success); background: #f0fdf4; }
+        .api-badge.loading { border-color: #fef08a; color: var(--warning); background: #fefce8; }
 
         /* Tabs */
         .tabs {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+            gap: 6px;
+            margin-bottom: 24px;
             border-bottom: 1px solid var(--border-color);
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
@@ -151,45 +154,77 @@
         .tabs::-webkit-scrollbar { display: none; }
 
         .tab-btn {
-            background: none;
+            background: transparent;
             border: none;
-            padding: 8px 12px;
+            padding: 10px 16px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             color: var(--text-light);
             border-bottom: 2px solid transparent;
             margin-bottom: -1px;
-            border-radius: 4px 4px 0 0;
+            border-radius: 6px 6px 0 0;
             transition: all 0.2s;
             white-space: nowrap;
+            font-weight: 500;
         }
         .tab-btn:hover { background-color: var(--hover-bg); color: var(--text-color); }
-        .tab-btn.active { color: var(--text-color); border-bottom: 2px solid var(--text-color); font-weight: 500; }
+        .tab-btn.active { color: var(--text-color); border-bottom: 2px solid var(--primary); background: var(--card-bg); font-weight: 600; box-shadow: 0 -1px 3px rgba(0,0,0,0.02); }
 
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+
+        /* Period Section Containers */
+        .period-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+        .period-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .period-header h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .period-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--primary);
+            border-radius: 50%;
+        }
 
         /* Grid & Cards */
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
+            gap: 14px;
         }
 
         .card {
             border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-            background: var(--bg-color);
+            border-radius: 8px;
+            padding: 14px;
+            background: #fafaf8;
         }
 
         .card h3 {
-            font-size: 11px;
+            font-size: 10px;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
             color: var(--text-light);
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             font-weight: 600;
         }
 
@@ -197,23 +232,23 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
             border-bottom: 1px dashed var(--border-color);
-            padding-bottom: 4px;
+            padding-bottom: 3px;
         }
         .card-row:last-child { margin-bottom: 0; border-bottom: none; padding-bottom: 0; }
 
         .card-currency-label { font-size: 11px; color: var(--text-light); font-weight: 600; }
-        .card-amount { font-size: 15px; font-weight: 600; }
+        .card-amount { font-size: 14px; font-weight: 600; }
 
         /* Suggestion Box */
         .suggestion-box {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #991b1b;
+            background: #fff5f5;
+            border: 1px solid #fed7d7;
+            color: #c53030;
             padding: 12px 16px;
-            border-radius: 6px;
-            margin-bottom: 20px;
+            border-radius: 8px;
+            margin-bottom: 16px;
             font-size: 13px;
         }
         .suggestion-box strong { font-weight: 600; }
@@ -225,58 +260,63 @@
             gap: 12px;
             align-items: end;
             margin-bottom: 20px;
-            background: var(--hover-bg);
-            padding: 16px;
-            border-radius: 6px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 18px;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
         }
 
         .form-group label {
             display: block;
-            font-size: 12px;
+            font-size: 11px;
+            font-weight: 600;
             color: var(--text-light);
-            margin-bottom: 4px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
         }
 
         input, select {
             width: 100%;
-            padding: 8px;
+            padding: 9px 10px;
             border: 1px solid var(--border-color);
-            border-radius: 4px;
+            border-radius: 6px;
             font-family: inherit;
-            font-size: 14px;
+            font-size: 13px;
             outline: none;
-            background: var(--bg-color);
+            background: #fff;
         }
-        input:focus, select:focus { border-color: var(--primary); }
+        input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(46,170,220,0.15); }
 
         button {
-            padding: 8px 12px;
+            padding: 9px 14px;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             font-family: inherit;
-            font-size: 14px;
+            font-size: 13px;
             cursor: pointer;
             font-weight: 500;
-            transition: background 0.2s;
+            transition: all 0.2s;
         }
 
-        .btn-primary { background-color: var(--primary); color: white; width: 100%; }
+        .btn-primary { background-color: var(--primary); color: white; width: 100%; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .btn-primary:hover { background-color: var(--primary-hover); }
         
         .btn-secondary {
-            background-color: var(--hover-bg);
+            background-color: var(--card-bg);
             border: 1px solid var(--border-color);
             color: var(--text-color);
             width: 100%;
             margin-bottom: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
         }
-        .btn-secondary:hover { background-color: var(--border-color); }
+        .btn-secondary:hover { background-color: var(--hover-bg); }
 
         .btn-copy {
-            background-color: #2eaadc;
+            background-color: var(--primary);
             color: white;
             border: none;
-            padding: 4px 8px;
+            padding: 5px 10px;
             font-size: 11px;
             border-radius: 4px;
             cursor: pointer;
@@ -286,13 +326,13 @@
             gap: 4px;
             vertical-align: middle;
         }
-        .btn-copy:hover { background-color: #069cba; }
+        .btn-copy:hover { background-color: var(--primary-hover); }
 
-        .btn-edit { background-color: transparent; color: var(--warning); padding: 4px 8px; margin-right: 4px; border: 1px solid transparent; }
-        .btn-edit:hover { background-color: #fffbe6; border-color: #ffe58f; }
+        .btn-edit { background-color: transparent; color: var(--warning); padding: 4px 8px; margin-right: 4px; border: 1px solid transparent; font-weight: 600; }
+        .btn-edit:hover { background-color: #fffbe6; border-color: #ffe58f; border-radius: 4px; }
 
-        .btn-danger { background-color: transparent; color: var(--danger); padding: 4px 8px; border: 1px solid transparent; }
-        .btn-danger:hover { background-color: #fee2e2; border-color: #fca5a5; }
+        .btn-danger { background-color: transparent; color: var(--danger); padding: 4px 8px; border: 1px solid transparent; font-weight: 600; }
+        .btn-danger:hover { background-color: #fee2e2; border-color: #fca5a5; border-radius: 4px; }
 
         /* Tables */
         .table-container {
@@ -300,32 +340,34 @@
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
             border: 1px solid var(--border-color);
-            border-radius: 6px;
+            border-radius: 8px;
+            background: var(--card-bg);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 14px;
+            font-size: 13px;
             min-width: 550px;
         }
 
-        th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border-color); }
         tr:last-child td { border-bottom: none; }
-        th { font-weight: 500; color: var(--text-light); font-size: 12px; text-transform: uppercase; background-color: #fafafa; }
+        th { font-weight: 600; color: var(--text-light); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; background-color: #fafaf8; }
 
-        .badge { padding: 2px 6px; border-radius: 4px; font-size: 11px; background: var(--hover-bg); white-space: nowrap; font-weight: 500; }
-        .badge.ingreso { color: var(--success); background: #e6f4f1; }
-        .badge.gasto { color: var(--danger); background: #fdeaea; }
-        .badge.personal { color: var(--personal); background: #e6f4ff; }
+        .badge { padding: 3px 8px; border-radius: 6px; font-size: 11px; background: var(--hover-bg); white-space: nowrap; font-weight: 500; }
+        .badge.ingreso { color: var(--success); background: #f0fdf4; border: 1px solid #bbf7d0; }
+        .badge.gasto { color: var(--danger); background: #fef2f2; border: 1px solid #fecaca; }
+        .badge.personal { color: var(--personal); background: #eff6ff; border: 1px solid #bfdbfe; }
 
         /* Exchange Panel */
         .exchange-panel {
-            background: #fffbe6;
-            border: 1px solid #ffe58f;
-            padding: 16px;
-            border-radius: 6px;
+            background: #fffbeb;
+            border: 1px solid #fde047;
+            padding: 18px;
+            border-radius: 12px;
             margin-bottom: 24px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
         }
         .exchange-header-row {
             display: flex;
@@ -333,9 +375,9 @@
             align-items: center;
             flex-wrap: wrap;
             gap: 10px;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
-        .exchange-panel h3 { color: #d48806; font-size: 14px; margin: 0; font-weight: 600; }
+        .exchange-panel h3 { color: #854d0e; font-size: 13px; margin: 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
         
         .exchange-list {
             list-style-type: none;
@@ -345,26 +387,29 @@
             margin-bottom: 6px;
             font-size: 13px;
             padding-left: 12px;
-            border-left: 2px solid #ffe58f;
+            border-left: 2px solid #facc15;
+            color: #713f12;
         }
         .exchange-total {
-            border-top: 1px dashed #ffe58f;
-            padding-top: 8px;
+            border-top: 1px dashed #fde047;
+            padding-top: 10px;
             font-weight: 600;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: 8px;
+            color: #713f12;
         }
 
         /* History Reports */
         .report-section {
-            background: #fafafa;
+            background: var(--card-bg);
             border: 1px solid var(--border-color);
-            border-radius: 6px;
+            border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
         }
         .report-header {
             display: flex;
@@ -372,7 +417,7 @@
             align-items: center;
             margin-bottom: 16px;
             border-bottom: 1px solid var(--border-color);
-            padding-bottom: 8px;
+            padding-bottom: 10px;
         }
         .report-header h3 { font-size: 16px; font-weight: 600; }
         
@@ -402,9 +447,9 @@
             flex-wrap: wrap;
             gap: 16px;
             margin-bottom: 20px;
-            background: #fafafa;
-            padding: 12px;
-            border-radius: 6px;
+            background: var(--card-bg);
+            padding: 14px;
+            border-radius: 10px;
             border: 1px solid var(--border-color);
         }
         .history-controls-group {
@@ -416,10 +461,11 @@
 
         @media (max-width: 600px) {
             body { padding: 12px; }
-            .form-grid { grid-template-columns: 1fr; padding: 12px; }
+            .form-grid { grid-template-columns: 1fr; padding: 14px; }
             .header h1 { font-size: 20px; }
             .grid { grid-template-columns: 1fr; }
             .history-controls { flex-direction: column; }
+            .period-section { padding: 14px; }
         }
     </style>
 </head>
@@ -482,13 +528,13 @@
 
     <!-- CONFIG TAB -->
     <div id="config-tab-content" class="tab-content">
-        <div class="card" style="max-width: 450px; margin: 0 auto;">
-            <h2 id="txt-cfg-title" style="font-size: 16px; margin-bottom: 8px;">Configuración Avanzada</h2>
-            <p id="txt-cfg-desc" style="font-size: 12px; color: var(--text-light); margin-bottom: 16px;">
+        <div class="card" style="max-width: 480px; margin: 0 auto; background: var(--card-bg); border-radius: 12px; padding: 24px;">
+            <h2 id="txt-cfg-title" style="font-size: 16px; margin-bottom: 6px; font-weight: 600;">Configuración Avanzada</h2>
+            <p id="txt-cfg-desc" style="font-size: 12px; color: var(--text-light); margin-bottom: 20px;">
                 Defina la frecuencia de presupuesto, la moneda base y las monedas adicionales.
             </p>
             
-            <div class="form-group" style="margin-bottom: 12px;">
+            <div class="form-group" style="margin-bottom: 14px;">
                 <label id="txt-lbl-freq">Frecuencia de Presupuesto</label>
                 <select id="cfg-frequency" onchange="updateFrequency()">
                     <option value="mensual">Mensual (1 Periodo)</option>
@@ -497,17 +543,17 @@
                 </select>
             </div>
 
-            <div class="form-group" style="margin-bottom: 12px;">
+            <div class="form-group" style="margin-bottom: 14px;">
                 <label id="txt-lbl-base">Moneda Base (Ej. USD, CRC)</label>
                 <input type="text" id="cfg-base" value="USD" style="text-transform: uppercase;" onchange="onBaseCurrencyChangedLocally()">
             </div>
 
-            <div class="form-group" style="margin-bottom: 12px;">
+            <div class="form-group" style="margin-bottom: 14px;">
                 <label id="txt-lbl-alt">Monedas Adicionales (Separadas por comas, Ej. USD, EUR)</label>
                 <input type="text" id="cfg-alt" value="CRC" style="text-transform: uppercase;">
             </div>
 
-            <div class="form-group" style="margin-bottom: 12px;">
+            <div class="form-group" style="margin-bottom: 16px;">
                 <label id="txt-lbl-scope">Filtro por Defecto en Conversiones</label>
                 <select id="cfg-exchange-scope" onchange="saveConfig(false)">
                     <option value="current">Periodo Actual</option>
@@ -520,7 +566,7 @@
             <div id="rates-container" style="margin-bottom: 16px;"></div>
             
             <button class="btn-primary" onclick="saveConfig(true)" id="txt-btn-save">Guardar Configuración</button>
-            <p id="config-msg" style="color: var(--success); font-size: 12px; margin-top: 8px; display: none; text-align: center;"></p>
+            <p id="config-msg" style="color: var(--success); font-size: 12px; margin-top: 8px; display: none; text-align: center; font-weight: 500;"></p>
         </div>
     </div>
 
@@ -970,10 +1016,20 @@
                 setDefaultExchangeFilter();
             }
             filterSelect.value = currentExchangeFilter;
+            updateActiveFilterLabel();
+        }
+
+        function updateActiveFilterLabel() {
+            const labelEl = document.getElementById('active-filter-name');
+            if (!labelEl) return;
+            const periods = getActivePeriods();
+            const currentObj = periods.find(p => p.id === currentExchangeFilter);
+            labelEl.textContent = currentObj ? currentObj.name : '';
         }
 
         function changeExchangeFilter(val) {
             currentExchangeFilter = val;
+            updateActiveFilterLabel();
             calculateDashboard();
         }
 
@@ -982,28 +1038,32 @@
             let cardsHTML = '';
             periods.forEach(p => {
                 cardsHTML += `
-                    <h2 style="font-size: 16px; margin-bottom: 12px; margin-top: 20px; font-weight: 600;">Resumen ${p.name}</h2>
-                    <div id="suggestion-${p.id}"></div>
-                    <div class="grid">
-                        <div class="card">
-                            <h3>${t('cardInc')}</h3>
-                            <div id="card-${p.id}-inc"></div>
+                    <div class="period-section">
+                        <div class="period-header">
+                            <h2><span class="period-dot"></span>${p.name}</h2>
                         </div>
-                        <div class="card">
-                            <h3>${t('cardExp')}</h3>
-                            <div id="card-${p.id}-exp"></div>
-                        </div>
-                        <div class="card">
-                            <h3>${t('cardPersonal')}</h3>
-                            <div id="card-${p.id}-per"></div>
-                        </div>
-                        <div class="card">
-                            <h3>${t('cardSav')}</h3>
-                            <div id="card-${p.id}-sav"></div>
-                        </div>
-                        <div class="card">
-                            <h3>${t('cardRem')}</h3>
-                            <div id="card-${p.id}-rem"></div>
+                        <div id="suggestion-${p.id}"></div>
+                        <div class="grid">
+                            <div class="card">
+                                <h3>${t('cardInc')}</h3>
+                                <div id="card-${p.id}-inc"></div>
+                            </div>
+                            <div class="card">
+                                <h3>${t('cardExp')}</h3>
+                                <div id="card-${p.id}-exp"></div>
+                            </div>
+                            <div class="card">
+                                <h3>${t('cardPersonal')}</h3>
+                                <div id="card-${p.id}-per"></div>
+                            </div>
+                            <div class="card">
+                                <h3>${t('cardSav')}</h3>
+                                <div id="card-${p.id}-sav"></div>
+                            </div>
+                            <div class="card">
+                                <h3>${t('cardRem')}</h3>
+                                <div id="card-${p.id}-rem"></div>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -1013,10 +1073,10 @@
                 <div id="dashboard" class="tab-content active">
                     <div id="exchange-container" class="exchange-panel" style="display: none;">
                         <div class="exchange-header-row">
-                            <h3>${t('exTitle')}</h3>
+                            <h3>${t('exTitle')} (<span id="active-filter-name" style="color: var(--primary); font-weight: 700;">-</span>)</h3>
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <label style="font-size: 12px; color: #d48806; font-weight: 500;" id="txt-filter-lbl">Filtro:</label>
-                                <select id="exchange-filter" onchange="changeExchangeFilter(this.value)" style="font-size: 12px; padding: 4px; width: auto; background: white; border-color: #ffe58f;"></select>
+                                <label style="font-size: 11px; color: #854d0e; font-weight: 600; text-transform: uppercase;">Filtro:</label>
+                                <select id="exchange-filter" onchange="changeExchangeFilter(this.value)" style="font-size: 12px; padding: 4px 8px; width: auto; background: white; border-color: #fde047; font-weight: 500;"></select>
                             </div>
                         </div>
                         <ul id="exchange-bullets" class="exchange-list"></ul>
@@ -1120,7 +1180,7 @@
                     let bccrRes = await fetch('https://apis.gometa.org/tdc/tdc.json');
                     let bccrData = await bccrRes.json();
                     if (bccrData && bccrData.venta) {
-                        bccrSale = parseFloat(bccrData.venta); // Ej: 505.00 colones por dólar
+                        bccrSale = parseFloat(bccrData.venta);
                     }
                 } catch (err) {
                     console.warn("No se pudo conectar con BCCR API, usando respaldo global.", err);
@@ -1138,7 +1198,6 @@
                 }
 
                 if (base === 'CRC' && bccrSale) {
-                    // Si la base es CRC, 1 CRC vale (1 / bccrSale) USD
                     ratesMap['USD'] = parseFloat((1 / bccrSale).toFixed(6));
                     appData.config.altCurrencies.forEach(alt => {
                         alt = alt.trim().toUpperCase();
@@ -1149,7 +1208,6 @@
                         }
                     });
                 } else if (base === 'USD' && bccrSale) {
-                    // Si la base es USD, 1 USD vale bccrSale CRC
                     ratesMap['CRC'] = bccrSale;
                     appData.config.altCurrencies.forEach(alt => {
                         alt = alt.trim().toUpperCase();
@@ -1205,7 +1263,7 @@
             let currenciesToShow = ['USD', 'CRC', ...appData.config.altCurrencies].map(c => c.trim().toUpperCase());
             currenciesToShow = [...new Set(currenciesToShow)].filter(c => c !== base);
 
-            container.innerHTML = `<label style="display: block; font-size: 12px; color: var(--text-light); margin-bottom: 6px;">${appData.config.language === 'es' ? 'Tasas de Cambio (1 ' + base + ' = X Moneda):' : 'Exchange Rates (1 ' + base + ' = X Currency):'}</label>`;
+            container.innerHTML = `<label style="display: block; font-size: 11px; font-weight: 600; color: var(--text-light); margin-bottom: 6px; text-transform: uppercase;">${appData.config.language === 'es' ? 'Tasas de Cambio (1 ' + base + ' = X Moneda):' : 'Exchange Rates (1 ' + base + ' = X Currency):'}</label>`;
             
             currenciesToShow.forEach(alt => {
                 if(!appData.config.rates[alt]) {
@@ -1214,9 +1272,9 @@
                 
                 container.innerHTML += `
                     <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
-                        <span style="font-weight: 500; min-width: 50px;">1 ${base} =</span>
+                        <span style="font-weight: 500; min-width: 50px; font-size: 13px;">1 ${base} =</span>
                         <input type="number" step="0.00001" id="rate-${alt}" value="${appData.config.rates[alt]}" style="flex: 1;">
-                        <span style="font-weight: 500; min-width: 50px;">${alt}</span>
+                        <span style="font-weight: 500; min-width: 50px; font-size: 13px;">${alt}</span>
                     </div>
                 `;
             });
@@ -1345,41 +1403,32 @@
 
             if (fromCurr === toCurr) return amount;
 
-            // Obtener factor de conversión de 'fromCurr' hacia la moneda Base
             let rateFrom = 1.00;
             if (fromCurr !== base) {
                 if (rates[fromCurr] && rates[fromCurr] > 0) {
                     rateFrom = rates[fromCurr];
                 } else if (rates[base] && rates[base] > 0) {
-                    // Auto-inversión inteligente si el usuario guardó la tasa al revés
                     rateFrom = 1.00 / rates[base];
                 } else if (fromCurr === 'USD' && base === 'CRC') {
-                    rateFrom = 0.00198; // Respaldo ~505
+                    rateFrom = 0.00198;
                 } else if (fromCurr === 'CRC' && base === 'USD') {
                     rateFrom = 505.00;
                 }
             }
 
-            // Convertir transacción a Base
-            let amountInBase = amount * (fromCurr === base ? 1.00 : (fromCurr === 'USD' && base === 'CRC' && rateFrom < 1 ? (1 / rateFrom) : (rates[fromCurr] < 1 ? (1 / rates[fromCurr]) : rateFrom))); 
-            // Nota de blindaje: Si la tasa es menor a 1 (ej. 1 CRC = 0.00198 USD), multiplicar por el inverso o dividir adecuadamente:
             let correctedAmountInBase = 0;
             if (fromCurr === base) {
                 correctedAmountInBase = amount;
             } else {
                 let r = rates[fromCurr];
                 if (r && r > 0) {
-                    // Si 1 Base = X MonedaExtranjera (ej: 1 USD = 505 CRC), entonces MontoCRC / 505 = MontoUSD
-                    // Si 1 Base = 0.00198 USD (ej: 1 CRC = 0.00198 USD), entonces MontoUSD / 0.00198 = MontoCRC
-                    correctedAmountInBase = r < 1 ? (amount / r) : (amount * r); // Ajuste dinámico inteligente
+                    correctedAmountInBase = r < 1 ? (amount / r) : (amount * r);
                 } else {
                     correctedAmountInBase = amount;
                 }
             }
 
-            // Redirigir a Base final
             if (toCurr === base) {
-                // Ajuste preciso para evitar inversión doble
                 let directRate = rates[fromCurr];
                 if(fromCurr !== base && directRate) {
                     return directRate < 1 ? (amount / directRate) : (amount * directRate);
@@ -1387,7 +1436,6 @@
                 return amount;
             }
 
-            // Si se requiere convertir de Base a otra moneda extranjera destino
             let rateTo = rates[toCurr] || 1.00;
             let finalBaseVal = rates[fromCurr] < 1 ? (amount / rates[fromCurr]) : (amount * rates[fromCurr]);
             return rateTo < 1 ? (finalBaseVal * rateTo) : (finalBaseVal / rateTo);
@@ -1540,6 +1588,7 @@
                 renderMultiCurrencyCard(`card-${p.id}-rem`, uniqueCurrencies, remVals, remColor);
             });
 
+            updateActiveFilterLabel();
             const exchangeContainer = document.getElementById('exchange-container');
             const exchangeBullets = document.getElementById('exchange-bullets');
             const exchangeTotalContainer = document.getElementById('exchange-total-container');
