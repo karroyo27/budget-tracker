@@ -55,11 +55,17 @@
             max-width: 380px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
             text-align: center;
+            position: relative;
         }
         .lock-card h2 { font-size: 18px; margin-bottom: 8px; }
         .lock-card p { font-size: 13px; color: var(--text-light); margin-bottom: 16px; }
         .lock-card input { margin-bottom: 12px; }
         .lock-error { color: var(--danger); font-size: 12px; margin-top: 8px; display: none; }
+        .lock-lang-container {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+        }
 
         .header {
             margin-bottom: 20px;
@@ -324,6 +330,9 @@
     <!-- LOCK SCREEN OVERLAY -->
     <div id="lock-screen">
         <div class="lock-card">
+            <div class="lock-lang-container">
+                <button class="btn-lang" onclick="toggleLockScreenLanguage()" id="lock-lang-toggle">English 🌐</button>
+            </div>
             <h2 id="lock-title">🔐 Enter Passphrase</h2>
             <p id="lock-desc">Enter your master passphrase to decrypt and unlock your financial dashboard.</p>
             <input type="password" id="passphrase-input" placeholder="Passphrase..." onkeydown="if(event.key === 'Enter') handleUnlock()">
@@ -390,140 +399,19 @@
     <script>
         let appData = null;
         let masterKey = null;
+        let currentLockLang = navigator.language.startsWith('es') ? 'es' : 'en';
 
         const STORAGE_KEY = 'encryptedBudgetTrackerV1';
 
-        // --- Crypto Helpers ---
-        async function deriveKey(passphrase, salt) {
-            const enc = new TextEncoder();
-            const keyMaterial = await window.crypto.subtle.importKey(
-                "raw",
-                enc.encode(passphrase),
-                { name: "PBKDF2" },
-                false,
-                ["deriveKey"]
-            );
-            return window.crypto.subtle.deriveKey(
-                {
-                    name: "PBKDF2",
-                    salt: salt,
-                    iterations: 100000,
-                    hash: "SHA-256"
-                },
-                keyMaterial,
-                { name: "AES-GCM", length: 256 },
-                false,
-                ["encrypt", "decrypt"]
-            );
-        }
-
-        async function encryptData(dataObj, passphrase) {
-            const salt = window.crypto.getRandomValues(new Uint8Array(16));
-            const iv = window.crypto.getRandomValues(new Uint8Array(12));
-            const key = await deriveKey(passphrase, salt);
-            const encoded = new TextEncoder().encode(JSON.stringify(dataObj));
-            
-            const ciphertext = await window.crypto.subtle.encrypt(
-                { name: "AES-GCM", iv: iv },
-                key,
-                encoded
-            );
-
-            // Combine salt + iv + ciphertext into a single base64 string
-            const combined = new Uint8Array(salt.byteLength + iv.byteLength + ciphertext.byteLength);
-            combined.set(salt, 0);
-            combined.set(iv, salt.byteLength);
-            combined.set(new Uint8Array(ciphertext), salt.byteLength + iv.byteLength);
-
-            return btoa(String.fromCharCode(...combined));
-        }
-
-        async function decryptData(base64Str, passphrase) {
-            const binary = atob(base64Str);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-                bytes[i] = binary.charCodeAt(i);
-            }
-
-            const salt = bytes.slice(0, 16);
-            const iv = bytes.slice(16, 28);
-            const ciphertext = bytes.slice(28);
-
-            const key = await deriveKey(passphrase, salt);
-            const decrypted = await window.crypto.subtle.decrypt(
-                { name: "AES-GCM", iv: iv },
-                key,
-                ciphertext
-            );
-
-            return JSON.parse(new TextDecoder().decode(decrypted));
-        }
-
-        // --- Startup & Unlock Logic ---
-        async function checkInitialState() {
-            const encryptedData = localStorage.getItem(STORAGE_KEY);
-            if (!encryptedData) {
-                // First time setup
-                document.getElementById('lock-title').innerText = "🔑 Create Master Passphrase";
-                document.getElementById('lock-desc').innerText = "Set a passphrase to encrypt and secure your financial data.";
-                document.getElementById('lock-btn').innerText = "Create & Start";
-            }
-        }
-
-        async function handleUnlock() {
-            const passphrase = document.getElementById('passphrase-input').value;
-            const errorDiv = document.getElementById('lock-error');
-            errorDiv.style.display = 'none';
-
-            if (!passphrase) return;
-
-            const encryptedData = localStorage.getItem(STORAGE_KEY);
-
-            try {
-                if (!encryptedData) {
-                    // Initialize default app data structure
-                    appData = {
-                        config: {
-                            language: 'es',
-                            frequency: 'quincenal',
-                            baseCurrency: 'USD',
-                            altCurrencies: ['CRC'],
-                            rates: { 'CRC': 505.00 },
-                            lastFetchDate: null
-                        },
-                        periods: { 'p1': [], 'p2': [], 'p3': [], 'p4': [] }
-                    };
-                    masterKey = passphrase;
-                    await saveData();
-                    document.getElementById('lock-screen').style.display = 'none';
-                    initApp();
-                } else {
-                    // Attempt to decrypt
-                    appData = await decryptData(encryptedData, passphrase);
-                    masterKey = passphrase;
-                    document.getElementById('lock-screen').style.display = 'none';
-                    initApp();
-                }
-            } catch (e) {
-                errorDiv.style.display = 'block';
-            }
-        }
-
-        async function saveData() {
-            if (!masterKey) return;
-            const encrypted = await encryptData(appData, masterKey);
-            localStorage.setItem(STORAGE_KEY, encrypted);
-            renderTables();
-            calculateDashboard();
-        }
-
-        async function saveDataWithoutFullReset() {
-            await saveData();
-        }
-
-        // --- Core Application Functions ---
         const translations = {
             es: {
+                lockTitleUnlock: "🔐 Ingresar Contraseña",
+                lockDescUnlock: "Ingresa tu contraseña maestra para descifrar y desbloquear tu dashboard financiero.",
+                lockBtnUnlock: "Desbloquear",
+                lockTitleCreate: "🔑 Crear Contraseña Maestra",
+                lockDescCreate: "Establece una contraseña para cifrar y asegurar tus datos financieros.",
+                lockBtnCreate: "Crear y Empezar",
+                lockError: "Contraseña incorrecta o error de descifrado.",
                 appTitle: "Dashboard Financiero",
                 cfgTitle: "Configuración Avanzada",
                 cfgDesc: "Define tu frecuencia de presupuesto, moneda base y monedas adicionales.",
@@ -575,6 +463,13 @@
                 months: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
             },
             en: {
+                lockTitleUnlock: "🔐 Enter Passphrase",
+                lockDescUnlock: "Enter your master passphrase to decrypt and unlock your financial dashboard.",
+                lockBtnUnlock: "Unlock",
+                lockTitleCreate: "🔑 Create Master Passphrase",
+                lockDescCreate: "Set a passphrase to encrypt and secure your financial data.",
+                lockBtnCreate: "Create & Start",
+                lockError: "Incorrect passphrase or decryption failed.",
                 appTitle: "Financial Dashboard",
                 cfgTitle: "Advanced Settings",
                 cfgDesc: "Define your budget frequency, base currency, and additional currencies.",
@@ -627,6 +522,141 @@
             }
         };
 
+        function lt(key) {
+            return translations[currentLockLang][key] || key;
+        }
+
+        function toggleLockScreenLanguage() {
+            currentLockLang = currentLockLang === 'es' ? 'en' : 'es';
+            updateLockScreenUI();
+        }
+
+        function updateLockScreenUI() {
+            const encryptedData = localStorage.getItem(STORAGE_KEY);
+            const isFirstTime = !encryptedData;
+
+            document.getElementById('lock-lang-toggle').innerText = currentLockLang === 'es' ? 'English 🌐' : 'Español 🌐';
+            document.getElementById('lock-title').innerText = isFirstTime ? lt('lockTitleCreate') : lt('lockTitleUnlock');
+            document.getElementById('lock-desc').innerText = isFirstTime ? lt('lockDescCreate') : lt('lockDescUnlock');
+            document.getElementById('lock-btn').innerText = isFirstTime ? lt('lockBtnCreate') : lt('lockBtnUnlock');
+            document.getElementById('lock-error').innerText = lt('lockError');
+            document.getElementById('passphrase-input').placeholder = currentLockLang === 'es' ? 'Contraseña...' : 'Passphrase...';
+        }
+
+        // --- Crypto Helpers ---
+        async function deriveKey(passphrase, salt) {
+            const enc = new TextEncoder();
+            const keyMaterial = await window.crypto.subtle.importKey(
+                "raw",
+                enc.encode(passphrase),
+                { name: "PBKDF2" },
+                false,
+                ["deriveKey"]
+            );
+            return window.crypto.subtle.deriveKey(
+                {
+                    name: "PBKDF2",
+                    salt: salt,
+                    iterations: 100000,
+                    hash: "SHA-256"
+                },
+                keyMaterial,
+                { name: "AES-GCM", length: 256 },
+                false,
+                ["encrypt", "decrypt"]
+            );
+        }
+
+        async function encryptData(dataObj, passphrase) {
+            const salt = window.crypto.getRandomValues(new Uint8Array(16));
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            const key = await deriveKey(passphrase, salt);
+            const encoded = new TextEncoder().encode(JSON.stringify(dataObj));
+            
+            const ciphertext = await window.crypto.subtle.encrypt(
+                { name: "AES-GCM", iv: iv },
+                key,
+                encoded
+            );
+
+            const combined = new Uint8Array(salt.byteLength + iv.byteLength + ciphertext.byteLength);
+            combined.set(salt, 0);
+            combined.set(iv, salt.byteLength);
+            combined.set(new Uint8Array(ciphertext), salt.byteLength + iv.byteLength);
+
+            return btoa(String.fromCharCode(...combined));
+        }
+
+        async function decryptData(base64Str, passphrase) {
+            const binary = atob(base64Str);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+
+            const salt = bytes.slice(0, 16);
+            const iv = bytes.slice(16, 28);
+            const ciphertext = bytes.slice(28);
+
+            const key = await deriveKey(passphrase, salt);
+            const decrypted = await window.crypto.subtle.decrypt(
+                { name: "AES-GCM", iv: iv },
+                key,
+                ciphertext
+            );
+
+            return JSON.parse(new TextDecoder().decode(decrypted));
+        }
+
+        async function handleUnlock() {
+            const passphrase = document.getElementById('passphrase-input').value;
+            const errorDiv = document.getElementById('lock-error');
+            errorDiv.style.display = 'none';
+
+            if (!passphrase) return;
+
+            const encryptedData = localStorage.getItem(STORAGE_KEY);
+
+            try {
+                if (!encryptedData) {
+                    appData = {
+                        config: {
+                            language: currentLockLang,
+                            frequency: 'quincenal',
+                            baseCurrency: 'USD',
+                            altCurrencies: ['CRC'],
+                            rates: { 'CRC': 505.00 },
+                            lastFetchDate: null
+                        },
+                        periods: { 'p1': [], 'p2': [], 'p3': [], 'p4': [] }
+                    };
+                    masterKey = passphrase;
+                    await saveData();
+                    document.getElementById('lock-screen').style.display = 'none';
+                    initApp();
+                } else {
+                    appData = await decryptData(encryptedData, passphrase);
+                    masterKey = passphrase;
+                    document.getElementById('lock-screen').style.display = 'none';
+                    initApp();
+                }
+            } catch (e) {
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        async function saveData() {
+            if (!masterKey) return;
+            const encrypted = await encryptData(appData, masterKey);
+            localStorage.setItem(STORAGE_KEY, encrypted);
+            renderTables();
+            calculateDashboard();
+        }
+
+        async function saveDataWithoutFullReset() {
+            await saveData();
+        }
+
         const expandedCategories = [
             "Salario / Nómina", "Freelance / Ingresos Extras", "Inversiones / Dividendos",
             "Alquiler / Hipoteca", "Servicios Básicos (Luz, Agua, Internet)", "Telefonía / Celular",
@@ -669,7 +699,7 @@
         }
 
         function initApp() {
-            if (!appData.config.language) appData.config.language = 'es';
+            if (!appData.config.language) appData.config.language = currentLockLang;
             document.getElementById('cfg-frequency').value = appData.config.frequency;
             document.getElementById('cfg-base').value = appData.config.baseCurrency;
             document.getElementById('cfg-alt').value = appData.config.altCurrencies.join(', ');
@@ -1255,8 +1285,8 @@
             navigator.clipboard.writeText(val).then(() => alert(alertText));
         }
 
-        // Initialize check on page load
-        checkInitialState();
+        // Initialize lock screen UI with device language on load
+        updateLockScreenUI();
     </script>
 </body>
 </html>
