@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notion Budget Tracker</title>
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src https://fonts.gstatic.com; connect-src https://open.er-api.com;">
+    <title>Financial Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -29,6 +31,35 @@
             padding: 20px;
             font-size: 14px;
         }
+
+        /* Lock Screen Overlay */
+        #lock-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.98);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+        .lock-card {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 24px;
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+        .lock-card h2 { font-size: 18px; margin-bottom: 8px; }
+        .lock-card p { font-size: 13px; color: var(--text-light); margin-bottom: 16px; }
+        .lock-card input { margin-bottom: 12px; }
+        .lock-error { color: var(--danger); font-size: 12px; margin-top: 8px; display: none; }
 
         .header {
             margin-bottom: 20px;
@@ -290,76 +321,207 @@
 </head>
 <body>
 
+    <!-- LOCK SCREEN OVERLAY -->
+    <div id="lock-screen">
+        <div class="lock-card">
+            <h2 id="lock-title">🔐 Enter Passphrase</h2>
+            <p id="lock-desc">Enter your master passphrase to decrypt and unlock your financial dashboard.</p>
+            <input type="password" id="passphrase-input" placeholder="Passphrase..." onkeydown="if(event.key === 'Enter') handleUnlock()">
+            <button class="btn-primary" onclick="handleUnlock()" id="lock-btn">Unlock</button>
+            <div id="lock-error" class="lock-error">Incorrect passphrase or decryption failed.</div>
+        </div>
+    </div>
+
     <div class="header">
         <div>
-            <h1 id="txt-app-title">Dashboard Financiero</h1>
-            <p id="current-month-year">Mes Actual</p>
+            <h1 id="txt-app-title">Financial Dashboard</h1>
+            <p id="current-month-year">Current Month</p>
         </div>
         <div class="header-actions">
             <button class="btn-lang" onclick="toggleLanguage()" id="btn-lang-toggle">English 🌐</button>
             <div id="api-badge" class="api-badge loading">
-                🔄 Conectando API...
+                🔄 Connecting API...
             </div>
         </div>
     </div>
 
-    <!-- TABS DINÁMICOS -->
+    <!-- TABS -->
     <div id="tabs-container" class="tabs"></div>
 
-    <!-- CONTENEDOR DE PESTAÑAS -->
+    <!-- TAB CONTENTS -->
     <div id="tab-contents-container"></div>
 
     <!-- CONFIG TAB -->
     <div id="config-tab-content" class="tab-content">
         <div class="card" style="max-width: 450px; margin: 0 auto;">
-            <h2 id="txt-cfg-title" style="font-size: 16px; margin-bottom: 8px;">Configuración Avanzada</h2>
+            <h2 id="txt-cfg-title" style="font-size: 16px; margin-bottom: 8px;">Advanced Settings</h2>
             <p id="txt-cfg-desc" style="font-size: 12px; color: var(--text-light); margin-bottom: 16px;">
-                Define tu frecuencia de presupuesto, moneda base y monedas adicionales.
+                Define your budget frequency, base currency, and additional currencies.
             </p>
             
             <div class="form-group" style="margin-bottom: 12px;">
-                <label id="txt-lbl-freq">Frecuencia de Presupuesto</label>
+                <label id="txt-lbl-freq">Budget Frequency</label>
                 <select id="cfg-frequency" onchange="updateFrequency()">
-                    <option value="mensual">Mensual (1 Periodo)</option>
-                    <option value="quincenal">Quincenal (2 Periodos)</option>
-                    <option value="semanal">Semanal (4 Periodos)</option>
+                    <option value="mensual">Monthly (1 Period)</option>
+                    <option value="quincenal">Bi-weekly (2 Periods)</option>
+                    <option value="semanal">Weekly (4 Periods)</option>
                 </select>
             </div>
 
             <div class="form-group" style="margin-bottom: 12px;">
-                <label id="txt-lbl-base">Moneda Base (Ej. USD)</label>
+                <label id="txt-lbl-base">Base Currency (e.g. USD)</label>
                 <input type="text" id="cfg-base" value="USD" style="text-transform: uppercase;">
             </div>
 
             <div class="form-group" style="margin-bottom: 12px;">
-                <label id="txt-lbl-alt">Monedas Adicionales (Separadas por comas, Ej. CRC, EUR)</label>
+                <label id="txt-lbl-alt">Additional Currencies (Comma separated, e.g. CRC, EUR)</label>
                 <input type="text" id="cfg-alt" value="CRC" style="text-transform: uppercase;">
             </div>
 
-            <button class="btn-secondary" onclick="fetchExchangeRates(true)" id="txt-btn-api">🔄 Forzar Actualización de API</button>
+            <button class="btn-secondary" onclick="fetchExchangeRates(true)" id="txt-btn-api">🔄 Force API Update</button>
 
             <div id="rates-container" style="margin-bottom: 16px;"></div>
             
-            <button class="btn-primary" onclick="saveConfig(true)" id="txt-btn-save">Guardar Configuración</button>
+            <button class="btn-primary" onclick="saveConfig(true)" id="txt-btn-save">Save Settings</button>
             <p id="config-msg" style="color: var(--success); font-size: 12px; margin-top: 8px; display: none; text-align: center;"></p>
         </div>
     </div>
 
     <script>
-        let appData = JSON.parse(localStorage.getItem('notionBudgetLangV1')) || {
-            config: {
-                language: 'es', // 'es' o 'en'
-                frequency: 'quincenal',
-                baseCurrency: 'USD',
-                altCurrencies: ['CRC'],
-                rates: { 'CRC': 505.00 },
-                lastFetchDate: null
-            },
-            periods: {
-                'p1': [], 'p2': [], 'p3': [], 'p4': []
-            }
-        };
+        let appData = null;
+        let masterKey = null;
 
+        const STORAGE_KEY = 'encryptedBudgetTrackerV1';
+
+        // --- Crypto Helpers ---
+        async function deriveKey(passphrase, salt) {
+            const enc = new TextEncoder();
+            const keyMaterial = await window.crypto.subtle.importKey(
+                "raw",
+                enc.encode(passphrase),
+                { name: "PBKDF2" },
+                false,
+                ["deriveKey"]
+            );
+            return window.crypto.subtle.deriveKey(
+                {
+                    name: "PBKDF2",
+                    salt: salt,
+                    iterations: 100000,
+                    hash: "SHA-256"
+                },
+                keyMaterial,
+                { name: "AES-GCM", length: 256 },
+                false,
+                ["encrypt", "decrypt"]
+            );
+        }
+
+        async function encryptData(dataObj, passphrase) {
+            const salt = window.crypto.getRandomValues(new Uint8Array(16));
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            const key = await deriveKey(passphrase, salt);
+            const encoded = new TextEncoder().encode(JSON.stringify(dataObj));
+            
+            const ciphertext = await window.crypto.subtle.encrypt(
+                { name: "AES-GCM", iv: iv },
+                key,
+                encoded
+            );
+
+            // Combine salt + iv + ciphertext into a single base64 string
+            const combined = new Uint8Array(salt.byteLength + iv.byteLength + ciphertext.byteLength);
+            combined.set(salt, 0);
+            combined.set(iv, salt.byteLength);
+            combined.set(new Uint8Array(ciphertext), salt.byteLength + iv.byteLength);
+
+            return btoa(String.fromCharCode(...combined));
+        }
+
+        async function decryptData(base64Str, passphrase) {
+            const binary = atob(base64Str);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+
+            const salt = bytes.slice(0, 16);
+            const iv = bytes.slice(16, 28);
+            const ciphertext = bytes.slice(28);
+
+            const key = await deriveKey(passphrase, salt);
+            const decrypted = await window.crypto.subtle.decrypt(
+                { name: "AES-GCM", iv: iv },
+                key,
+                ciphertext
+            );
+
+            return JSON.parse(new TextDecoder().decode(decrypted));
+        }
+
+        // --- Startup & Unlock Logic ---
+        async function checkInitialState() {
+            const encryptedData = localStorage.getItem(STORAGE_KEY);
+            if (!encryptedData) {
+                // First time setup
+                document.getElementById('lock-title').innerText = "🔑 Create Master Passphrase";
+                document.getElementById('lock-desc').innerText = "Set a passphrase to encrypt and secure your financial data.";
+                document.getElementById('lock-btn').innerText = "Create & Start";
+            }
+        }
+
+        async function handleUnlock() {
+            const passphrase = document.getElementById('passphrase-input').value;
+            const errorDiv = document.getElementById('lock-error');
+            errorDiv.style.display = 'none';
+
+            if (!passphrase) return;
+
+            const encryptedData = localStorage.getItem(STORAGE_KEY);
+
+            try {
+                if (!encryptedData) {
+                    // Initialize default app data structure
+                    appData = {
+                        config: {
+                            language: 'es',
+                            frequency: 'quincenal',
+                            baseCurrency: 'USD',
+                            altCurrencies: ['CRC'],
+                            rates: { 'CRC': 505.00 },
+                            lastFetchDate: null
+                        },
+                        periods: { 'p1': [], 'p2': [], 'p3': [], 'p4': [] }
+                    };
+                    masterKey = passphrase;
+                    await saveData();
+                    document.getElementById('lock-screen').style.display = 'none';
+                    initApp();
+                } else {
+                    // Attempt to decrypt
+                    appData = await decryptData(encryptedData, passphrase);
+                    masterKey = passphrase;
+                    document.getElementById('lock-screen').style.display = 'none';
+                    initApp();
+                }
+            } catch (e) {
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        async function saveData() {
+            if (!masterKey) return;
+            const encrypted = await encryptData(appData, masterKey);
+            localStorage.setItem(STORAGE_KEY, encrypted);
+            renderTables();
+            calculateDashboard();
+        }
+
+        async function saveDataWithoutFullReset() {
+            await saveData();
+        }
+
+        // --- Core Application Functions ---
         const translations = {
             es: {
                 appTitle: "Dashboard Financiero",
@@ -506,7 +668,7 @@
             document.getElementById('current-month-year').innerText = `${monthName} ${now.getFullYear()}`;
         }
 
-        function init() {
+        function initApp() {
             if (!appData.config.language) appData.config.language = 'es';
             document.getElementById('cfg-frequency').value = appData.config.frequency;
             document.getElementById('cfg-base').value = appData.config.baseCurrency;
@@ -821,18 +983,6 @@
             }
         }
 
-        function saveData() {
-            localStorage.setItem('notionBudgetLangV1', JSON.stringify(appData));
-            renderTables();
-            calculateDashboard();
-        }
-
-        function saveDataWithoutFullReset() {
-            localStorage.setItem('notionBudgetLangV1', JSON.stringify(appData));
-            renderTables();
-            calculateDashboard();
-        }
-
         function renderTables() {
             const base = appData.config.baseCurrency;
             const rates = appData.config.rates;
@@ -845,27 +995,65 @@
                 if (!appData.periods[p.id]) appData.periods[p.id] = [];
 
                 appData.periods[p.id].forEach(tx => {
-                    const badgeClass = tx.type === 'ingreso' ? 'ingreso' : 'gasto';
-                    const amountFmt = formatMoney(tx.amount, tx.curr);
+                    const tr = document.createElement('tr');
+
+                    const tdDesc = document.createElement('td');
+                    const strongDesc = document.createElement('strong');
+                    strongDesc.textContent = tx.desc;
+                    tdDesc.appendChild(strongDesc);
                     
+                    if (tx.catDesc) {
+                        tdDesc.appendChild(document.createElement('br'));
+                        const smallCat = document.createElement('small');
+                        smallCat.style.color = 'var(--text-light)';
+                        smallCat.textContent = tx.catDesc;
+                        tdDesc.appendChild(smallCat);
+                    }
+                    tr.appendChild(tdDesc);
+
+                    const tdCat = document.createElement('td');
+                    const badgeCat = document.createElement('span');
+                    badgeCat.className = `badge ${tx.type === 'ingreso' ? 'ingreso' : 'gasto'}`;
+                    badgeCat.textContent = tx.cat;
+                    tdCat.appendChild(badgeCat);
+                    tr.appendChild(tdCat);
+
+                    const tdCurr = document.createElement('td');
+                    const badgeCurr = document.createElement('span');
+                    badgeCurr.className = 'badge';
+                    badgeCurr.textContent = tx.curr;
+                    tdCurr.appendChild(badgeCurr);
+                    tr.appendChild(tdCurr);
+
+                    const tdOrig = document.createElement('td');
+                    tdOrig.textContent = formatMoney(tx.amount, tx.curr);
+                    tr.appendChild(tdOrig);
+
                     let baseEq = tx.amount;
                     if(tx.curr !== base && rates[tx.curr]) {
                         baseEq = tx.amount / rates[tx.curr];
                     }
+                    const tdBase = document.createElement('td');
+                    tdBase.style.color = 'var(--text-light)';
+                    tdBase.textContent = formatMoney(baseEq, base);
+                    tr.appendChild(tdBase);
+
+                    const tdActions = document.createElement('td');
+                    const btnEdit = document.createElement('button');
+                    btnEdit.className = 'btn-edit';
+                    btnEdit.textContent = t('btnEdit');
+                    btnEdit.onclick = () => editTransaction(p.id, tx.id);
                     
-                    tbody.innerHTML += `
-                        <tr>
-                            <td><strong>${tx.desc}</strong><br><small style="color:var(--text-light);">${tx.catDesc || ''}</small></td>
-                            <td><span class="badge ${badgeClass}">${tx.cat}</span></td>
-                            <td><span class="badge">${tx.curr}</span></td>
-                            <td>${amountFmt}</td>
-                            <td style="color: var(--text-light)">${formatMoney(baseEq, base)}</td>
-                            <td>
-                                <button class="btn-edit" onclick="editTransaction('${p.id}', ${tx.id})">${t('btnEdit')}</button>
-                                <button class="btn-danger" onclick="deleteTransaction('${p.id}', ${tx.id})">${t('btnDelete')}</button>
-                            </td>
-                        </tr>
-                    `;
+                    const btnDelete = document.createElement('button');
+                    btnDelete.className = 'btn-danger';
+                    btnDelete.textContent = t('btnDelete');
+                    btnDelete.onclick = () => deleteTransaction(p.id, tx.id);
+
+                    tdActions.appendChild(btnEdit);
+                    tdActions.appendChild(btnDelete);
+                    tr.appendChild(tdActions);
+
+                    tbody.appendChild(tr);
                 });
             });
         }
@@ -965,11 +1153,25 @@
                                 if (!totalExpensesInOtherCurrency[c]) totalExpensesInOtherCurrency[c] = 0;
                                 totalExpensesInOtherCurrency[c] += tx.amount;
 
-                                let needText = appData.config.language === 'es' 
-                                    ? `Necesitas <strong>${formatMoney(tx.amount, c)}</strong> para <strong>"${tx.desc}"</strong>. Ocupas cambiar <strong>${formatMoney(baseNeededForThisTx, base)}</strong>.`
-                                    : `You need <strong>${formatMoney(tx.amount, c)}</strong> for <strong>"${tx.desc}"</strong>. You need to exchange <strong>${formatMoney(baseNeededForThisTx, base)}</strong>.`;
-
-                                exchangeBullets.innerHTML += `<li>${needText}</li>`;
+                                const li = document.createElement('li');
+                                if (appData.config.language === 'es') {
+                                    li.append(document.createTextNode('Necesitas '));
+                                    const b1 = document.createElement('strong'); b1.textContent = formatMoney(tx.amount, c); li.append(b1);
+                                    li.append(document.createTextNode(' para '));
+                                    const b2 = document.createElement('strong'); b2.textContent = `"${tx.desc}"`; li.append(b2);
+                                    li.append(document.createTextNode('. Ocupas cambiar '));
+                                    const b3 = document.createElement('strong'); b3.textContent = formatMoney(baseNeededForThisTx, base); li.append(b3);
+                                    li.append(document.createTextNode('.'));
+                                } else {
+                                    li.append(document.createTextNode('You need '));
+                                    const b1 = document.createElement('strong'); b1.textContent = formatMoney(tx.amount, c); li.append(b1);
+                                    li.append(document.createTextNode(' for '));
+                                    const b2 = document.createElement('strong'); b2.textContent = `"${tx.desc}"`; li.append(b2);
+                                    li.append(document.createTextNode('. You need to exchange '));
+                                    const b3 = document.createElement('strong'); b3.textContent = formatMoney(baseNeededForThisTx, base); li.append(b3);
+                                    li.append(document.createTextNode('.'));
+                                }
+                                exchangeBullets.appendChild(li);
                             }
                         }
                     }
@@ -984,10 +1186,19 @@
 
                 let totalLabelText = appData.config.language === 'es' ? 'Total a Cambiar' : 'Total to Exchange';
 
-                exchangeTotalContainer.innerHTML = `
-                    <span>${t('exTotalLbl')} <strong>${altTotalsText.join(' + ')}</strong> | ${totalLabelText} (${base}): <strong>${formatMoney(totalBaseEquivalentToChange, base)}</strong></span>
-                    <button class="btn-copy" onclick="copyText('${totalBaseEquivalentToChange.toFixed(2)}')">📋 ${t('btnCopy')} ${formatMoney(totalBaseEquivalentToChange, base)}</button>
-                `;
+                const spanTotal = document.createElement('span');
+                spanTotal.append(document.createTextNode(`${t('exTotalLbl')} `));
+                const bAlt = document.createElement('strong'); bAlt.textContent = altTotalsText.join(' + '); spanTotal.append(bAlt);
+                spanTotal.append(document.createTextNode(` | ${totalLabelText} (${base}): `));
+                const bBase = document.createElement('strong'); bBase.textContent = formatMoney(totalBaseEquivalentToChange, base); spanTotal.append(bBase);
+
+                const btnCopy = document.createElement('button');
+                btnCopy.className = 'btn-copy';
+                btnCopy.textContent = `📋 ${t('btnCopy')} ${formatMoney(totalBaseEquivalentToChange, base)}`;
+                btnCopy.onclick = () => copyText(totalBaseEquivalentToChange.toFixed(2));
+
+                exchangeTotalContainer.appendChild(spanTotal);
+                exchangeTotalContainer.appendChild(btnCopy);
                 exchangeContainer.style.display = 'block';
             } else {
                 exchangeContainer.style.display = 'none';
@@ -1001,12 +1212,21 @@
             
             currencies.forEach((curr, index) => {
                 let val = values[index] || 0;
-                container.innerHTML += `
-                    <div class="card-row">
-                        <span class="card-currency-label">${curr}</span>
-                        <span class="card-amount" style="color: ${colorStyle}">${formatMoney(val, curr)}</span>
-                    </div>
-                `;
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'card-row';
+
+                const labelSpan = document.createElement('span');
+                labelSpan.className = 'card-currency-label';
+                labelSpan.textContent = curr;
+
+                const amountSpan = document.createElement('span');
+                amountSpan.className = 'card-amount';
+                amountSpan.style.color = colorStyle;
+                amountSpan.textContent = formatMoney(val, curr);
+
+                rowDiv.appendChild(labelSpan);
+                rowDiv.appendChild(amountSpan);
+                container.appendChild(rowDiv);
             });
         }
 
@@ -1035,7 +1255,8 @@
             navigator.clipboard.writeText(val).then(() => alert(alertText));
         }
 
-        init();
+        // Initialize check on page load
+        checkInitialState();
     </script>
 </body>
 </html>
