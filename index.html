@@ -530,12 +530,12 @@
 
             <div class="form-group" style="margin-bottom: 14px;">
                 <label id="txt-lbl-base">Moneda Base (Ej. USD, CRC)</label>
-                <input type="text" id="cfg-base" value="USD" style="text-transform: uppercase;" onchange="onBaseCurrencyChangedLocally()">
+                <input type="text" id="cfg-base" value="CRC" style="text-transform: uppercase;" onchange="onBaseCurrencyChangedLocally()">
             </div>
 
             <div class="form-group" style="margin-bottom: 14px;">
                 <label id="txt-lbl-alt">Monedas Adicionales (Separadas por comas, Ej. USD, EUR)</label>
-                <input type="text" id="cfg-alt" value="CRC" style="text-transform: uppercase;">
+                <input type="text" id="cfg-alt" value="USD" style="text-transform: uppercase;">
             </div>
 
             <button class="btn-secondary" onclick="fetchExchangeRates(true)" id="txt-btn-api">Actualizar Tasas de Cambio BCCR / API</button>
@@ -820,9 +820,9 @@
                         config: {
                             language: currentLockLang,
                             frequency: 'quincenal',
-                            baseCurrency: 'USD',
-                            altCurrencies: ['CRC'],
-                            rates: { 'USD': 1.00, 'CRC': 505.00 },
+                            baseCurrency: 'CRC',
+                            altCurrencies: ['USD'],
+                            rates: { 'CRC': 1.00, 'USD': 505.00 },
                             lastFetchDate: null
                         },
                         periods: { 'p1': [], 'p2': [], 'p3': [], 'p4': [] },
@@ -836,7 +836,7 @@
                     appData = await decryptData(encryptedData, passphrase);
                     masterKey = passphrase;
                     if(!appData.history) appData.history = {}; 
-                    if(!appData.config.rates) appData.config.rates = { 'USD': 1.00, 'CRC': 505.00 };
+                    if(!appData.config.rates) appData.config.rates = { 'CRC': 1.00, 'USD': 505.00 };
                     document.getElementById('lock-screen').style.display = 'none';
                     initApp();
                 }
@@ -1152,8 +1152,8 @@
                     console.warn("Usando tasa por defecto BCCR", err);
                 }
 
-                ratesMap['CRC'] = bccrSale;
-                ratesMap['USD'] = 1.00;
+                ratesMap['CRC'] = 1.00;
+                ratesMap['USD'] = bccrSale; // 1 USD vale X colones en base CRC
 
                 let globalRates = {};
                 try {
@@ -1169,8 +1169,10 @@
                 appData.config.altCurrencies.forEach(alt => {
                     alt = alt.trim().toUpperCase();
                     if (alt === base) return;
-                    if (alt !== 'CRC' && globalRates[alt]) {
-                        ratesMap[alt] = globalRates[alt];
+                    if (alt === 'USD') {
+                        ratesMap['USD'] = bccrSale;
+                    } else if (globalRates[alt]) {
+                        ratesMap[alt] = bccrSale / (globalRates[alt] || 1);
                     }
                 });
 
@@ -1208,28 +1210,28 @@
         function renderRateInputs() {
             const container = document.getElementById('rates-container');
             const base = appData.config.baseCurrency;
-            let currenciesToShow = ['USD', 'CRC', ...appData.config.altCurrencies].map(c => c.trim().toUpperCase());
+            let currenciesToShow = ['CRC', 'USD', ...appData.config.altCurrencies].map(c => c.trim().toUpperCase());
             currenciesToShow = [...new Set(currenciesToShow)].filter(c => c !== base);
 
-            container.innerHTML = `<label style="display: block; font-size: 11px; font-weight: 600; color: var(--text-light); margin-bottom: 6px; text-transform: uppercase;">${appData.config.language === 'es' ? 'Tasa de Cambio (1 USD en CRC):' : 'Exchange Rate (1 USD in CRC):'}</label>`;
+            container.innerHTML = `<label style="display: block; font-size: 11px; font-weight: 600; color: var(--text-light); margin-bottom: 6px; text-transform: uppercase;">${appData.config.language === 'es' ? 'Tasa de Cambio (Valor de 1 USD en CRC):' : 'Exchange Rate (Value of 1 USD in CRC):'}</label>`;
             
             currenciesToShow.forEach(alt => {
                 if(!appData.config.rates[alt]) {
-                    appData.config.rates[alt] = (alt === 'CRC') ? 505.00 : 1.00;
+                    appData.config.rates[alt] = (alt === 'USD') ? 505.00 : 1.00;
                 }
                 
                 container.innerHTML += `
                     <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
-                        <span style="font-weight: 500; min-width: 60px; font-size: 13px;">1 USD =</span>
+                        <span style="font-weight: 500; min-width: 60px; font-size: 13px;">1 ${alt} =</span>
                         <input type="number" step="0.01" id="rate-${alt}" value="${appData.config.rates[alt]}" style="flex: 1;">
-                        <span style="font-weight: 500; min-width: 40px; font-size: 13px;">${alt}</span>
+                        <span style="font-weight: 500; min-width: 40px; font-size: 13px;">${base}</span>
                     </div>
                 `;
             });
         }
 
         function updateCurrencyDropdowns() {
-            const currencies = [appData.config.baseCurrency, 'USD', 'CRC', ...appData.config.altCurrencies.map(c => c.trim().toUpperCase())];
+            const currencies = [appData.config.baseCurrency, 'CRC', 'USD', ...appData.config.altCurrencies.map(c => c.trim().toUpperCase())];
             const uniqueCurrencies = [...new Set(currencies)];
             getActivePeriods().forEach(p => {
                 const select = document.getElementById(`curr-${p.id}`);
@@ -1315,7 +1317,7 @@
             let base = appData.config.baseCurrency;
             appData.config.rates[base] = 1.00;
 
-            let currenciesToSave = ['USD', 'CRC', ...appData.config.altCurrencies].map(c => c.trim().toUpperCase());
+            let currenciesToSave = ['CRC', 'USD', ...appData.config.altCurrencies].map(c => c.trim().toUpperCase());
             currenciesToSave = [...new Set(currenciesToSave)].filter(c => c !== base);
 
             currenciesToSave.forEach(alt => {
@@ -1342,6 +1344,7 @@
             }
         }
 
+        // MOTOR DE CONVERSIÓN ADAPTADO PARA BASE CRC (MULTIPLICACIÓN)
         function convertCurrency(amount, fromCurr, toCurr, base, rates) {
             fromCurr = fromCurr.toUpperCase().trim();
             toCurr = toCurr.toUpperCase().trim();
@@ -1349,24 +1352,19 @@
 
             if (fromCurr === toCurr) return amount;
 
-            let crcRate = rates['CRC'] || 505.00;
-
-            let amountInUSD = amount;
-            if (fromCurr === 'CRC') {
-                amountInUSD = amount / crcRate;
-            } else if (fromCurr !== 'USD') {
-                let r = rates[fromCurr] || 1.00;
-                amountInUSD = amount / r;
+            // 1. Convertir moneda origen a CRC (Base) multiplicando por su valor en colones
+            let amountInBase = amount;
+            if (fromCurr !== 'CRC') {
+                let rate = rates[fromCurr] || 505.00;
+                amountInBase = amount * rate; // Ej: $100 USD * 505 = ₡50,500 CRC
             }
 
-            if (toCurr === 'USD') return amountInUSD;
+            // 2. Si el destino es la base (CRC), retornamos el monto en base
+            if (toCurr === 'CRC') return amountInBase;
 
-            if (toCurr === 'CRC') {
-                return amountInUSD * crcRate;
-            }
-
-            let targetRate = rates[toCurr] || 1.00;
-            return amountInUSD * targetRate;
+            // 3. Si el destino es otra moneda extranjera (ej: USD), dividimos el monto en colones entre la tasa de esa moneda
+            let targetRate = rates[toCurr] || 505.00;
+            return amountInBase / targetRate;
         }
 
         function renderTables() {
@@ -1450,7 +1448,7 @@
             const base = appData.config.baseCurrency;
             const rates = appData.config.rates;
             const altCurrencies = appData.config.altCurrencies;
-            const allCurrencies = [base, 'USD', 'CRC', ...altCurrencies];
+            const allCurrencies = [base, 'CRC', 'USD', ...altCurrencies];
             const uniqueCurrencies = [...new Set(allCurrencies)];
 
             getActivePeriods().forEach(p => {
