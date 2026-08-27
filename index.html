@@ -508,7 +508,7 @@
             </div>
 
             <div class="form-group" style="margin-bottom: 12px;">
-                <label id="txt-lbl-scope">Periodo por Defecto en Conversiones</label>
+                <label id="txt-lbl-scope">Filtro por Defecto en Conversiones</label>
                 <select id="cfg-exchange-scope" onchange="saveConfig(false)">
                     <option value="current">Periodo Actual</option>
                     <option value="current_plus_next">Periodo Actual + 1 (Siguiente)</option>
@@ -547,7 +547,7 @@
                 lblFreq: "Frecuencia de Presupuesto",
                 lblBase: "Moneda Base (Ej. USD, CRC)",
                 lblAlt: "Monedas Adicionales (Separadas por comas, Ej. USD, EUR)",
-                lblScope: "Periodo por Defecto en Conversiones",
+                lblScope: "Filtro por Defecto en Conversiones",
                 btnApi: "Actualizar Tasas de Cambio BCCR / API",
                 btnSave: "Guardar Configuración",
                 msgSaved: "¡Guardado exitosamente!",
@@ -615,7 +615,7 @@
                 lblFreq: "Budget Frequency",
                 lblBase: "Base Currency (e.g. USD, CRC)",
                 lblAlt: "Additional Currencies (Comma separated, e.g. USD, EUR)",
-                lblScope: "Default Period in Conversions",
+                lblScope: "Default Conversion Filter",
                 btnApi: "Update Exchange Rates BCCR / API",
                 btnSave: "Save Settings",
                 msgSaved: "Successfully saved!",
@@ -921,7 +921,6 @@
                 baseIndex = 0;
             }
 
-            // Si el setting es "current_plus_next", sumamos 1 al índice si es posible
             let scope = appData.config.exchangeScope || 'current';
             if (scope === 'current_plus_next') {
                 baseIndex = (baseIndex + 1) % periods.length;
@@ -1116,19 +1115,17 @@
             let ratesMap = { [base]: 1.00 };
 
             try {
-                // 1. Obtener tasas oficiales de Costa Rica (BCCR Vía Gometa API JSON) para CRC / USD
                 let bccrSale = null;
                 try {
                     let bccrRes = await fetch('https://apis.gometa.org/tdc/tdc.json');
                     let bccrData = await bccrRes.json();
                     if (bccrData && bccrData.venta) {
-                        bccrSale = parseFloat(bccrData.venta); // Venta oficial BCCR
+                        bccrSale = parseFloat(bccrData.venta);
                     }
                 } catch (err) {
                     console.warn("No se pudo conectar con BCCR API, usando respaldo global.", err);
                 }
 
-                // 2. Obtener respaldo global contra USD para otras monedas (EUR, etc.)
                 let globalRates = {};
                 try {
                     let globalRes = await fetch('https://open.er-api.com/v6/latest/USD');
@@ -1140,9 +1137,8 @@
                     console.warn("No se pudo conectar con API global.", err);
                 }
 
-                // Si la base es CRC y tenemos venta BCCR
                 if (base === 'CRC' && bccrSale) {
-                    ratesMap['USD'] = parseFloat((1 / bccrSale).toFixed(6)); // 1 CRC = X USD
+                    ratesMap['USD'] = parseFloat((1 / bccrSale).toFixed(6));
                     appData.config.altCurrencies.forEach(alt => {
                         alt = alt.trim().toUpperCase();
                         if (alt === 'USD') return;
@@ -1152,7 +1148,7 @@
                         }
                     });
                 } else if (base === 'USD' && bccrSale) {
-                    ratesMap['CRC'] = bccrSale; // 1 USD = X CRC oficial BCCR
+                    ratesMap['CRC'] = bccrSale;
                     appData.config.altCurrencies.forEach(alt => {
                         alt = alt.trim().toUpperCase();
                         if (alt === 'CRC') return;
@@ -1197,7 +1193,7 @@
             const newBase = document.getElementById('cfg-base').value.trim().toUpperCase();
             if(newBase && newBase !== appData.config.baseCurrency) {
                 appData.config.baseCurrency = newBase;
-                fetchExchangeRates(false); // Dispara actualización automática inmediata al cambiar moneda base
+                fetchExchangeRates(false);
             }
         }
 
@@ -1471,7 +1467,6 @@
 
                 let remBase = totalIncBase - totalExpBase - totalPerBase - totalSavBase;
 
-                // Render negative balance suggestion if applicable
                 const suggestionDiv = document.getElementById(`suggestion-${p.id}`);
                 if (remBase < 0) {
                     let deficit = Math.abs(remBase);
@@ -1528,6 +1523,7 @@
             let totalBaseEquivalentToChange = 0;
             let totalExpensesInOtherCurrency = {};
 
+            // EVALUAR EXCLUSIVAMENTE EL PERIODO SELECCIONADO EN EL FILTRO (Sin mezclar periodos)
             let periodsToCheck = getActivePeriods().filter(p => p.id === currentExchangeFilter);
 
             periodsToCheck.forEach(p => {
