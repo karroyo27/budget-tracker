@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src https://fonts.gstatic.com; connect-src https://open.er-api.com;">
+    <!-- Content Security Policy optimizada para iOS / Safari -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src https://fonts.gstatic.com; connect-src https://open.er-api.com https://apis.gometa.org;">
     <title>Dashboard Financiero</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
@@ -31,6 +31,7 @@
             line-height: 1.5;
             padding: 20px;
             font-size: 14px;
+            -webkit-text-size-adjust: 100%;
         }
 
         /* Lock Screen Overlay */
@@ -506,7 +507,15 @@
                 <input type="text" id="cfg-alt" value="CRC" style="text-transform: uppercase;">
             </div>
 
-            <button class="btn-secondary" onclick="fetchExchangeRates(true)" id="txt-btn-api">Actualizar Tasas de Cambio</button>
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label id="txt-lbl-scope">Rango de Análisis de Conversión</label>
+                <select id="cfg-exchange-scope" onchange="saveConfig(false)">
+                    <option value="current">Solo Periodo Actual</option>
+                    <option value="current_plus_next">Periodo Actual + Siguiente (+1)</option>
+                </select>
+            </div>
+
+            <button class="btn-secondary" onclick="fetchExchangeRates(true)" id="txt-btn-api">Actualizar Tasas de Cambio BCCR / API</button>
 
             <div id="rates-container" style="margin-bottom: 16px;"></div>
             
@@ -518,7 +527,7 @@
     <script>
         let appData = null;
         let masterKey = null;
-        let currentLockLang = navigator.language.startsWith('es') ? 'es' : 'en';
+        let currentLockLang = navigator.language && navigator.language.startsWith('es') ? 'es' : 'en';
         let currentExchangeFilter = null;
 
         const STORAGE_KEY = 'encryptedBudgetTrackerV1';
@@ -538,7 +547,8 @@
                 lblFreq: "Frecuencia de Presupuesto",
                 lblBase: "Moneda Base (Ej. USD, CRC)",
                 lblAlt: "Monedas Adicionales (Separadas por comas, Ej. USD, EUR)",
-                btnApi: "Actualizar Tasas de Cambio",
+                lblScope: "Rango de Análisis de Conversión",
+                btnApi: "Actualizar Tasas de Cambio BCCR / API",
                 btnSave: "Guardar Configuración",
                 msgSaved: "¡Guardado exitosamente!",
                 tabDashboard: "Dashboard",
@@ -605,7 +615,8 @@
                 lblFreq: "Budget Frequency",
                 lblBase: "Base Currency (e.g. USD, CRC)",
                 lblAlt: "Additional Currencies (Comma separated, e.g. USD, EUR)",
-                btnApi: "Update Exchange Rates",
+                lblScope: "Conversion Analysis Scope",
+                btnApi: "Update Exchange Rates BCCR / API",
                 btnSave: "Save Settings",
                 msgSaved: "Successfully saved!",
                 tabDashboard: "Dashboard",
@@ -790,6 +801,7 @@
                             frequency: 'quincenal',
                             baseCurrency: 'USD',
                             altCurrencies: ['CRC'],
+                            exchangeScope: 'current',
                             rates: { 'USD': 1.00, 'CRC': 505.00 },
                             lastFetchDate: null
                         },
@@ -805,6 +817,7 @@
                     masterKey = passphrase;
                     if(!appData.history) appData.history = {}; 
                     if(!appData.config.rates) appData.config.rates = { 'USD': 1.00, 'CRC': 505.00 };
+                    if(!appData.config.exchangeScope) appData.config.exchangeScope = 'current';
                     document.getElementById('lock-screen').style.display = 'none';
                     initApp();
                 }
@@ -860,6 +873,7 @@
             document.getElementById('txt-lbl-freq').innerText = t('lblFreq');
             document.getElementById('txt-lbl-base').innerText = t('lblBase');
             document.getElementById('txt-lbl-alt').innerText = t('lblAlt');
+            document.getElementById('txt-lbl-scope').innerText = t('lblScope');
             document.getElementById('txt-btn-api').innerText = t('btnApi');
             document.getElementById('txt-btn-save').innerText = t('btnSave');
             document.getElementById('txt-btn-archive').innerText = t('btnArchive');
@@ -876,6 +890,7 @@
             document.getElementById('cfg-frequency').value = appData.config.frequency;
             document.getElementById('cfg-base').value = appData.config.baseCurrency;
             document.getElementById('cfg-alt').value = appData.config.altCurrencies.join(', ');
+            document.getElementById('cfg-exchange-scope').value = appData.config.exchangeScope || 'current';
 
             setDefaultExchangeFilter();
             applyStaticTranslations();
@@ -1078,7 +1093,7 @@
             } else {
                 const badge = document.getElementById('api-badge');
                 badge.className = 'api-badge success';
-                badge.innerHTML = 'Sincronizado';
+                badge.innerHTML = 'Sincronizado BCCR';
             }
         }
 
@@ -1087,45 +1102,85 @@
             badge.className = 'api-badge loading';
             badge.innerHTML = 'Sincronizando...';
             
-            try {
-                const response = await fetch(`https://open.er-api.com/v6/latest/USD`);
-                const data = await response.json();
-                
-                if (data && data.rates) {
-                    let base = appData.config.baseCurrency.toUpperCase().trim();
-                    let baseToUsd = data.rates[base] || 1.00;
+            let base = appData.config.baseCurrency.toUpperCase().trim();
+            let ratesMap = { [base]: 1.00 };
 
-                    // Almacenamos siempre las tasas relativas: 1 Moneda Base = X Moneda Destino
-                    appData.config.rates = { 'USD': 1.00 / baseToUsd };
-                    
+            try {
+                // 1. Obtener tasas oficiales de Costa Rica (BCCR Vía Gometa API JSON) para CRC / USD
+                let bccrSale = null;
+                try {
+                    let bccrRes = await fetch('https://apis.gometa.org/tdc/tdc.json');
+                    let bccrData = await bccrRes.json();
+                    if (bccrData && bccrData.venta) {
+                        bccrSale = parseFloat(bccrData.venta); // Venta oficial BCCR
+                    }
+                } catch (err) {
+                    console.warn("No se pudo conectar con BCCR API, usando respaldo global.", err);
+                }
+
+                // 2. Obtener respaldo global contra USD para otras monedas (EUR, etc.)
+                let globalRates = {};
+                try {
+                    let globalRes = await fetch('https://open.er-api.com/v6/latest/USD');
+                    let globalData = await globalRes.json();
+                    if (globalData && globalData.rates) {
+                        globalRates = globalData.rates;
+                    }
+                } catch (err) {
+                    console.warn("No se pudo conectar con API global.", err);
+                }
+
+                // Si la base es CRC y tenemos venta BCCR
+                if (base === 'CRC' && bccrSale) {
+                    ratesMap['USD'] = parseFloat((1 / bccrSale).toFixed(6)); // 1 CRC = X USD
                     appData.config.altCurrencies.forEach(alt => {
                         alt = alt.trim().toUpperCase();
-                        if (data.rates[alt]) {
-                            let altToUsd = data.rates[alt];
-                            // Tasa relativa respecto a la base: (Alt / Base)
-                            let baseToAltRate = altToUsd / baseToUsd;
-                            appData.config.rates[alt] = parseFloat(baseToAltRate.toFixed(4));
+                        if (alt === 'USD') return;
+                        if (globalRates[alt] && globalRates['CRC']) {
+                            // Cruzado: 1 CRC = (CRC/USD) * (USD/ALT)
+                            let crcToUsd = 1 / bccrSale;
+                            ratesMap[alt] = parseFloat((crcToUsd * globalRates[alt]).toFixed(4));
                         }
                     });
-                    appData.config.rates[base] = 1.00;
-                    
-                    appData.config.lastFetchDate = dateStr || new Date().toDateString();
-                    saveDataWithoutFullReset();
-                    renderRateInputs();
-                    
-                    badge.className = 'api-badge success';
-                    badge.innerHTML = 'Actualizado';
-                    
-                    if(isManualClick) {
-                        alert(appData.config.language === 'es' ? "¡Tipos de cambio actualizados exitosamente!" : "Exchange rates successfully updated!");
-                    }
+                } else if (base === 'USD' && bccrSale) {
+                    ratesMap['CRC'] = bccrSale; // 1 USD = X CRC oficial BCCR
+                    appData.config.altCurrencies.forEach(alt => {
+                        alt = alt.trim().toUpperCase();
+                        if (alt === 'CRC') return;
+                        if (globalRates[alt]) {
+                            ratesMap[alt] = parseFloat(globalRates[alt].toFixed(4));
+                        }
+                    });
+                } else {
+                    // Respaldo puramente global si BCCR no responde
+                    let baseToUsd = globalRates[base] || 1.00;
+                    appData.config.altCurrencies.forEach(alt => {
+                        alt = alt.trim().toUpperCase();
+                        if (globalRates[alt]) {
+                            ratesMap[alt] = parseFloat((globalRates[alt] / baseToUsd).toFixed(4));
+                        }
+                    });
+                }
+
+                ratesMap[base] = 1.00;
+                appData.config.rates = ratesMap;
+                appData.config.lastFetchDate = dateStr || new Date().toDateString();
+                
+                saveDataWithoutFullReset();
+                renderRateInputs();
+                
+                badge.className = 'api-badge success';
+                badge.innerHTML = 'Sincronizado BCCR';
+                
+                if(isManualClick) {
+                    alert(appData.config.language === 'es' ? "¡Tasas de cambio actualizadas con valores oficiales del BCCR!" : "Exchange rates successfully updated with official BCCR values!");
                 }
             } catch (error) {
-                console.error("Error al obtener tipo de cambio:", error);
+                console.error("Error general al obtener tipos de cambio:", error);
                 badge.className = 'api-badge';
                 badge.innerHTML = 'Modo Local';
                 if(isManualClick) {
-                    alert(appData.config.language === 'es' ? "No se pudo conectar a la API." : "Could not connect to API.");
+                    alert(appData.config.language === 'es' ? "No se pudo conectar a las fuentes de tipo de cambio." : "Could not connect to exchange rate sources.");
                 }
             }
         }
@@ -1134,7 +1189,7 @@
             const newBase = document.getElementById('cfg-base').value.trim().toUpperCase();
             if(newBase && newBase !== appData.config.baseCurrency) {
                 appData.config.baseCurrency = newBase;
-                fetchExchangeRates(false);
+                fetchExchangeRates(false); // Fuerza actualización automática inmediata al cambiar la moneda base
             }
         }
 
@@ -1142,17 +1197,19 @@
             const container = document.getElementById('rates-container');
             const base = appData.config.baseCurrency;
             let currenciesToShow = ['USD', ...appData.config.altCurrencies].map(c => c.trim().toUpperCase());
-            currenciesToShow = [...new Set(currencies)].filter(c => c !== base);
+            currenciesToShow = [...new Set(currenciesToShow)].filter(c => c !== base);
 
             container.innerHTML = `<label style="display: block; font-size: 12px; color: var(--text-light); margin-bottom: 6px;">${appData.config.language === 'es' ? 'Tasas de Cambio (1 ' + base + ' = X Moneda):' : 'Exchange Rates (1 ' + base + ' = X Currency):'}</label>`;
             
             currenciesToShow.forEach(alt => {
-                if(!appData.config.rates[alt]) appData.config.rates[alt] = (alt === 'USD' ? 0.002 : 1.00);
+                if(!appData.config.rates[alt]) {
+                    appData.config.rates[alt] = (alt === 'USD' && base === 'CRC') ? 0.0022 : 1.00;
+                }
                 
                 container.innerHTML += `
                     <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
                         <span style="font-weight: 500; min-width: 50px;">1 ${base} =</span>
-                        <input type="number" step="0.0001" id="rate-${alt}" value="${appData.config.rates[alt]}" style="flex: 1;">
+                        <input type="number" step="0.00001" id="rate-${alt}" value="${appData.config.rates[alt]}" style="flex: 1;">
                         <span style="font-weight: 500; min-width: 50px;">${alt}</span>
                     </div>
                 `;
@@ -1160,7 +1217,7 @@
         }
 
         function updateCurrencyDropdowns() {
-            const currencies = [appData.config.baseCurrency, 'USD', ...appData.config.altCurrencies.map(c => c.trim().toUpperCase())];
+            const currencies = [appData.config.baseCurrency, 'USD', 'CRC', ...appData.config.altCurrencies.map(c => c.trim().toUpperCase())];
             const uniqueCurrencies = [...new Set(currencies)];
             getActivePeriods().forEach(p => {
                 const select = document.getElementById(`curr-${p.id}`);
@@ -1178,8 +1235,9 @@
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             
-            if(event) event.currentTarget.classList.add('active');
-            else {
+            if(event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            } else {
                 let btnTarget = [...document.querySelectorAll('.tab-btn')].find(b => b.getAttribute('onclick').includes(tabId));
                 if(btnTarget) btnTarget.classList.add('active');
             }
@@ -1239,13 +1297,14 @@
         function saveConfig(showMessage) {
             appData.config.baseCurrency = document.getElementById('cfg-base').value.trim().toUpperCase();
             appData.config.frequency = document.getElementById('cfg-frequency').value;
+            appData.config.exchangeScope = document.getElementById('cfg-exchange-scope').value;
             const altInput = document.getElementById('cfg-alt').value;
             appData.config.altCurrencies = altInput.split(',').map(c => c.trim().toUpperCase()).filter(c => c);
 
             let base = appData.config.baseCurrency;
             appData.config.rates[base] = 1.00;
 
-            let currenciesToSave = ['USD', ...appData.config.altCurrencies].map(c => c.trim().toUpperCase());
+            let currenciesToSave = ['USD', 'CRC', ...appData.config.altCurrencies].map(c => c.trim().toUpperCase());
             currenciesToSave = [...new Set(currenciesToSave)].filter(c => c !== base);
 
             currenciesToSave.forEach(alt => {
@@ -1271,7 +1330,7 @@
             }
         }
 
-        // --- Core Multi-Currency Conversion Engine (Pivote en Moneda Base) ---
+        // --- Core Multi-Currency Conversion Engine Robust ---
         function convertCurrency(amount, fromCurr, toCurr, base, rates) {
             fromCurr = fromCurr.toUpperCase().trim();
             toCurr = toCurr.toUpperCase().trim();
@@ -1279,16 +1338,29 @@
 
             if (fromCurr === toCurr) return amount;
 
-            // 1. Obtener tasa de 'fromCurr' respecto a la Base (1 Base = X fromCurr)
-            let rateFrom = (fromCurr === base) ? 1.00 : rates[fromCurr];
-            if (!rateFrom || rateFrom <= 0) rateFrom = 1.00;
+            // Obtener tasa de 'fromCurr' respecto a la Base (1 Base = X fromCurr)
+            let rateFrom = 1.00;
+            if (fromCurr !== base) {
+                rateFrom = rates[fromCurr];
+                if (!rateFrom || rateFrom <= 0) {
+                    // Búsqueda inversa de respaldo por si la tasa fue ingresada al revés
+                    let invRate = rates[base];
+                    if (fromCurr === base) rateFrom = 1.00;
+                    else rateFrom = invRate ? (1 / invRate) : 1.00;
+                }
+            }
 
-            // 2. Obtener tasa de 'toCurr' respecto a la Base (1 Base = X toCurr)
-            let rateTo = (toCurr === base) ? 1.00 : rates[toCurr];
-            if (!rateTo || rateTo <= 0) rateTo = 1.00;
+            // Convertir primeramente a la moneda Base
+            let amountInBase = amount / (rateFrom || 1.00);
 
-            // Convertir a Base primero, luego a Moneda Destino
-            let amountInBase = amount / rateFrom;
+            if (toCurr === base) return amountInBase;
+
+            // Obtener tasa de 'toCurr' respecto a la Base (1 Base = X toCurr)
+            let rateTo = rates[toCurr];
+            if (!rateTo || rateTo <= 0) {
+                rateTo = 1.00;
+            }
+
             return amountInBase * rateTo;
         }
 
@@ -1373,7 +1445,7 @@
             const base = appData.config.baseCurrency;
             const rates = appData.config.rates;
             const altCurrencies = appData.config.altCurrencies;
-            const allCurrencies = [base, 'USD', ...altCurrencies];
+            const allCurrencies = [base, 'USD', 'CRC', ...altCurrencies];
             const uniqueCurrencies = [...new Set(allCurrencies)];
 
             getActivePeriods().forEach(p => {
@@ -1451,7 +1523,19 @@
             let totalBaseEquivalentToChange = 0;
             let totalExpensesInOtherCurrency = {};
 
-            let periodsToCheck = getActivePeriods().filter(p => p.id === currentExchangeFilter);
+            let periodsList = getActivePeriods();
+            let selectedFilterIndex = periodsList.findIndex(p => p.id === currentExchangeFilter);
+            let periodsToCheck = [];
+
+            if (selectedFilterIndex !== -1) {
+                periodsToCheck.push(periodsList[selectedFilterIndex]);
+                let scope = appData.config.exchangeScope || 'current';
+                if (scope === 'current_plus_next' && selectedFilterIndex + 1 < periodsList.length) {
+                    periodsToCheck.push(periodsList[selectedFilterIndex + 1]);
+                }
+            } else {
+                periodsToCheck = periodsList.filter(p => p.id === currentExchangeFilter);
+            }
 
             periodsToCheck.forEach(p => {
                 let txs = appData.periods[p.id] || [];
