@@ -553,14 +553,6 @@
                 <input type="text" id="cfg-alt" value="CRC" style="text-transform: uppercase;">
             </div>
 
-            <div class="form-group" style="margin-bottom: 16px;">
-                <label id="txt-lbl-scope">Filtro por Defecto en Conversiones</label>
-                <select id="cfg-exchange-scope" onchange="saveConfig(false)">
-                    <option value="current">Periodo Actual</option>
-                    <option value="current_plus_next">Periodo Actual + 1 (Siguiente)</option>
-                </select>
-            </div>
-
             <button class="btn-secondary" onclick="fetchExchangeRates(true)" id="txt-btn-api">Actualizar Tasas de Cambio BCCR / API</button>
 
             <div id="rates-container" style="margin-bottom: 16px;"></div>
@@ -593,7 +585,6 @@
                 lblFreq: "Frecuencia de Presupuesto",
                 lblBase: "Moneda Base (Ej. USD, CRC)",
                 lblAlt: "Monedas Adicionales (Separadas por comas, Ej. USD, EUR)",
-                lblScope: "Filtro por Defecto en Conversiones",
                 btnApi: "Actualizar Tasas de Cambio BCCR / API",
                 btnSave: "Guardar Configuración",
                 msgSaved: "¡Guardado exitosamente!",
@@ -661,7 +652,6 @@
                 lblFreq: "Budget Frequency",
                 lblBase: "Base Currency (e.g. USD, CRC)",
                 lblAlt: "Additional Currencies (Comma separated, e.g. USD, EUR)",
-                lblScope: "Default Conversion Filter",
                 btnApi: "Update Exchange Rates BCCR / API",
                 btnSave: "Save Settings",
                 msgSaved: "Successfully saved!",
@@ -847,7 +837,6 @@
                             frequency: 'quincenal',
                             baseCurrency: 'USD',
                             altCurrencies: ['CRC'],
-                            exchangeScope: 'current',
                             rates: { 'USD': 1.00, 'CRC': 505.00 },
                             lastFetchDate: null
                         },
@@ -863,7 +852,6 @@
                     masterKey = passphrase;
                     if(!appData.history) appData.history = {}; 
                     if(!appData.config.rates) appData.config.rates = { 'USD': 1.00, 'CRC': 505.00 };
-                    if(!appData.config.exchangeScope) appData.config.exchangeScope = 'current';
                     document.getElementById('lock-screen').style.display = 'none';
                     initApp();
                 }
@@ -919,7 +907,6 @@
             document.getElementById('txt-lbl-freq').innerText = t('lblFreq');
             document.getElementById('txt-lbl-base').innerText = t('lblBase');
             document.getElementById('txt-lbl-alt').innerText = t('lblAlt');
-            document.getElementById('txt-lbl-scope').innerText = t('lblScope');
             document.getElementById('txt-btn-api').innerText = t('btnApi');
             document.getElementById('txt-btn-save').innerText = t('btnSave');
             document.getElementById('txt-btn-archive').innerText = t('btnArchive');
@@ -936,7 +923,6 @@
             document.getElementById('cfg-frequency').value = appData.config.frequency;
             document.getElementById('cfg-base').value = appData.config.baseCurrency;
             document.getElementById('cfg-alt').value = appData.config.altCurrencies.join(', ');
-            document.getElementById('cfg-exchange-scope').value = appData.config.exchangeScope || 'current';
 
             setDefaultExchangeFilter();
             applyStaticTranslations();
@@ -967,10 +953,8 @@
                 baseIndex = 0;
             }
 
-            let scope = appData.config.exchangeScope || 'current';
-            if (scope === 'current_plus_next') {
-                baseIndex = (baseIndex + 1) % periods.length;
-            }
+            // Por defecto siempre Actual + 1 (siguiente periodo, haciendo loop cíclico)
+            baseIndex = (baseIndex + 1) % periods.length;
 
             currentExchangeFilter = periods[baseIndex] ? periods[baseIndex].id : periods[0].id;
         }
@@ -1208,7 +1192,15 @@
                     }
                 });
 
-                ratesMap[base] = 1.00;
+                // Blindaje estricto para evitar tasas en 1 cuando la base es CRC o hay divisas locales
+                if(base === 'CRC') {
+                    ratesMap['USD'] = 1 / bccrSale;
+                    ratesMap['CRC'] = 1.00;
+                } else {
+                    ratesMap[base] = 1.00;
+                    if(!ratesMap['CRC']) ratesMap['CRC'] = bccrSale;
+                }
+
                 appData.config.rates = ratesMap;
                 appData.config.lastFetchDate = dateStr || new Date().toDateString();
                 
@@ -1245,7 +1237,7 @@
             let currenciesToShow = ['USD', 'CRC', ...appData.config.altCurrencies].map(c => c.trim().toUpperCase());
             currenciesToShow = [...new Set(currenciesToShow)].filter(c => c !== base);
 
-            container.innerHTML = `<label style="display: block; font-size: 11px; font-weight: 600; color: var(--text-light); margin-bottom: 6px; text-transform: uppercase;">${appData.config.language === 'es' ? 'Tasa de Cambio (1 USD en CRC):' : 'Exchange Rate (1 USD in CRC):'}</label>`;
+            container.innerHTML = `<label style="display: block; font-size: 11px; font-weight: 600; color: var(--text-light); margin-bottom: 6px; text-transform: uppercase;">${appData.config.language === 'es' ? 'Tasas de Cambio Configuradas:' : 'Configured Exchange Rates:'}</label>`;
             
             currenciesToShow.forEach(alt => {
                 if(!appData.config.rates[alt]) {
@@ -1254,8 +1246,8 @@
                 
                 container.innerHTML += `
                     <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
-                        <span style="font-weight: 500; min-width: 60px; font-size: 13px;">1 USD =</span>
-                        <input type="number" step="0.01" id="rate-${alt}" value="${appData.config.rates[alt]}" style="flex: 1;">
+                        <span style="font-weight: 500; min-width: 60px; font-size: 13px;">1 ${base} =</span>
+                        <input type="number" step="0.0001" id="rate-${alt}" value="${appData.config.rates[alt]}" style="flex: 1;">
                         <span style="font-weight: 500; min-width: 40px; font-size: 13px;">${alt}</span>
                     </div>
                 `;
@@ -1343,7 +1335,6 @@
         function saveConfig(showMessage) {
             appData.config.baseCurrency = document.getElementById('cfg-base').value.trim().toUpperCase();
             appData.config.frequency = document.getElementById('cfg-frequency').value;
-            appData.config.exchangeScope = document.getElementById('cfg-exchange-scope').value;
             const altInput = document.getElementById('cfg-alt').value;
             appData.config.altCurrencies = altInput.split(',').map(c => c.trim().toUpperCase()).filter(c => c);
 
@@ -1356,7 +1347,7 @@
             currenciesToSave.forEach(alt => {
                 const input = document.getElementById(`rate-${alt}`);
                 if(input) {
-                    appData.config.rates[alt] = parseFloat(input.value) || 505.00;
+                    appData.config.rates[alt] = parseFloat(input.value) || (alt === 'CRC' ? 505.00 : 1.00);
                 }
             });
 
@@ -1377,7 +1368,7 @@
             }
         }
 
-        // --- MOTOR DE CONVERSIÓN CORREGIDO Y EXACTO ---
+        // --- MOTOR DE CONVERSIÓN UNIFICADO Y SÓLIDO ---
         function convertCurrency(amount, fromCurr, toCurr, base, rates) {
             fromCurr = fromCurr.toUpperCase().trim();
             toCurr = toCurr.toUpperCase().trim();
@@ -1387,26 +1378,23 @@
 
             let crcRate = rates['CRC'] || 505.00;
 
-            // 1. Convertir la cantidad origen a USD como pivote unificado
-            let amountInUSD = amount;
-            if (fromCurr === 'CRC') {
-                amountInUSD = amount / crcRate; // ₡120,000 / 505 = ~$237.62
-            } else if (fromCurr !== 'USD') {
-                let r = rates[fromCurr] || 1.00;
-                amountInUSD = amount / r;
+            // Si la base es USD (caso común)
+            if (base === 'USD') {
+                let amountInUSD = fromCurr === 'CRC' ? amount / crcRate : (fromCurr !== 'USD' ? amount / (rates[fromCurr] || 1.00) : amount);
+                if (toCurr === 'USD') return amountInUSD;
+                if (toCurr === 'CRC') return amountInUSD * crcRate;
+                return amountInUSD * (rates[toCurr] || 1.00);
+            } 
+            
+            // Si la base es CRC
+            if (base === 'CRC') {
+                let amountInCRC = fromCurr === 'USD' ? amount * crcRate : (fromCurr !== 'CRC' ? amount * (rates[fromCurr] || 1.00) : amount);
+                if (toCurr === 'CRC') return amountInCRC;
+                if (toCurr === 'USD') return amountInCRC / crcRate;
+                return amountInCRC / (rates[toCurr] || 1.00);
             }
 
-            // 2. Si el destino es USD, retornamos el pivote
-            if (toCurr === 'USD') return amountInUSD;
-
-            // 3. Si el destino es CRC, convertimos el pivote USD a CRC multiplicando
-            if (toCurr === 'CRC') {
-                return amountInUSD * crcRate;
-            }
-
-            // 4. Otras divisas
-            let targetRate = rates[toCurr] || 1.00;
-            return amountInUSD * targetRate;
+            return amount;
         }
 
         function renderTables() {
@@ -1585,7 +1573,7 @@
 
                             const li = document.createElement('li');
                             if (currentLockLang === 'es') {
-                                // Sin prefijo de quincena en los bullets
+                                // Bullets limpios sin mención de quincena
                                 li.append(document.createTextNode(`Gasto en `));
                                 const b1 = document.createElement('strong'); b1.textContent = formatMoney(tx.amount, c); li.append(b1);
                                 li.append(document.createTextNode(' para '));
