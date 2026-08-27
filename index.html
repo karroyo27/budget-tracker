@@ -296,7 +296,15 @@
             border-radius: 6px;
             margin-bottom: 24px;
         }
-        .exchange-panel h3 { margin-bottom: 8px; color: #d48806; font-size: 15px; }
+        .exchange-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .exchange-panel h3 { color: #d48806; font-size: 15px; margin: 0; }
         
         .exchange-list {
             list-style-type: disc;
@@ -400,6 +408,7 @@
         let appData = null;
         let masterKey = null;
         let currentLockLang = navigator.language.startsWith('es') ? 'es' : 'en';
+        let currentExchangeFilter = 'all';
 
         const STORAGE_KEY = 'encryptedBudgetTrackerV1';
 
@@ -438,6 +447,7 @@
                 cardSav: "Ahorros",
                 cardRem: "Dinero Restante",
                 exTitle: "💡 Resumen de Conversiones y Gastos por Moneda",
+                exFilterAll: "Todos los periodos",
                 exTotalLbl: "Total Gastos en otra moneda:",
                 exChangeLbl: "Total a Cambiar",
                 btnCopy: "Copiar",
@@ -496,6 +506,7 @@
                 cardSav: "Savings",
                 cardRem: "Remaining Money",
                 exTitle: "💡 Currency Conversion & Expenses Summary",
+                exFilterAll: "All periods",
                 exTotalLbl: "Total Expenses in other currency:",
                 exChangeLbl: "Total to Change",
                 btnCopy: "Copy",
@@ -521,6 +532,16 @@
                 months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
             }
         };
+
+        const expandedCategories = [
+            "Salario / Nómina", "Freelance / Ingresos Extras", "Inversiones / Dividendos",
+            "Alquiler / Hipoteca", "Servicios Básicos (Luz, Agua, Internet)", "Telefonía / Celular",
+            "Seguros (Auto, Médico, Vida)", "Préstamos / Deudas / Tarjetas", "Pensión alimenticia", "Suscripciones (Streaming, Software, Apps)",
+            "Supermercado y Alimentación", "Gasolina / Transporte / Peajes", "Uber / Taxis / Movilidad",
+            "Salidas, Restaurantes y Café", "Salud, Farmacia y Cuidado Personal", "Ropa, Calzado y Accesorios",
+            "Mascotas (Veterinario, Alimento)", "Educación / Cursos / Libros", "Entretenimiento / Hobbies",
+            "Imprevistos / Varios", "Otros", "Fondo de Emergencia / Ahorro", "Inversiones a Plazo"
+        ];
 
         function lt(key) {
             return translations[currentLockLang][key] || key;
@@ -657,16 +678,6 @@
             await saveData();
         }
 
-        const expandedCategories = [
-            "Salario / Nómina", "Freelance / Ingresos Extras", "Inversiones / Dividendos",
-            "Alquiler / Hipoteca", "Servicios Básicos (Luz, Agua, Internet)", "Telefonía / Celular",
-            "Seguros (Auto, Médico, Vida)", "Préstamos / Deudas / Tarjetas", "Suscripciones (Streaming, Software, Apps)",
-            "Supermercado y Alimentación", "Gasolina / Transporte / Peajes", "Uber / Taxis / Movilidad",
-            "Salidas, Restaurantes y Café", "Salud, Farmacia y Cuidado Personal", "Ropa, Calzado y Accesorios",
-            "Mascotas (Veterinario, Alimento)", "Educación / Cursos / Libros", "Entretenimiento / Hobbies",
-            "Imprevistos / Varios", "Fondo de Emergencia / Ahorro", "Inversiones a Plazo"
-        ];
-
         function t(key) {
             let lang = appData.config.language || 'es';
             return translations[lang][key] || key;
@@ -735,6 +746,32 @@
             });
 
             tabsContainer.innerHTML += `<button class="tab-btn" onclick="openTab('config-tab-content')">${t('tabConfig')}</button>`;
+            updateExchangeFilterOptions();
+        }
+
+        function updateExchangeFilterOptions() {
+            const filterSelect = document.getElementById('exchange-filter');
+            if(!filterSelect) return;
+            
+            let currentVal = filterSelect.value || currentExchangeFilter;
+            filterSelect.innerHTML = `<option value="all">${t('exFilterAll')}</option>`;
+            
+            getActivePeriods().forEach(p => {
+                filterSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+            });
+            
+            if([...filterSelect.options].some(opt => opt.value === currentVal)) {
+                filterSelect.value = currentVal;
+                currentExchangeFilter = currentVal;
+            } else {
+                filterSelect.value = 'all';
+                currentExchangeFilter = 'all';
+            }
+        }
+
+        function changeExchangeFilter(val) {
+            currentExchangeFilter = val;
+            calculateDashboard();
         }
 
         function generateDashboardHTML() {
@@ -767,7 +804,13 @@
             return `
                 <div id="dashboard" class="tab-content active">
                     <div id="exchange-container" class="exchange-panel" style="display: none;">
-                        <h3>${t('exTitle')}</h3>
+                        <div class="exchange-header-row">
+                            <h3>${t('exTitle')}</h3>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <label style="font-size: 12px; color: #d48806; font-weight: 500;" id="txt-filter-lbl">Periodo:</label>
+                                <select id="exchange-filter" onchange="changeExchangeFilter(this.value)" style="font-size: 12px; padding: 4px; width: auto; background: white; border-color: #ffe58f;"></select>
+                            </div>
+                        </div>
                         <ul id="exchange-bullets" class="exchange-list"></ul>
                         <div class="exchange-total" id="exchange-total-container"></div>
                     </div>
@@ -1159,7 +1202,12 @@
             let totalBaseEquivalentToChange = 0;
             let totalExpensesInOtherCurrency = {};
 
-            getActivePeriods().forEach(p => {
+            let periodsToCheck = getActivePeriods();
+            if (currentExchangeFilter !== 'all') {
+                periodsToCheck = periodsToCheck.filter(p => p.id === currentExchangeFilter);
+            }
+
+            periodsToCheck.forEach(p => {
                 let txs = appData.periods[p.id] || [];
                 txs.forEach(tx => {
                     if (['Gasto Fijo', 'Gasto Variable', 'Ahorro'].includes(tx.cat)) {
@@ -1184,8 +1232,8 @@
                                 totalExpensesInOtherCurrency[c] += tx.amount;
 
                                 const li = document.createElement('li');
-                                if (appData.config.language === 'es') {
-                                    li.append(document.createTextNode('Necesitas '));
+                                if (currentLockLang === 'es') {
+                                    li.append(document.createTextNode(`[${p.name}] Necesitas `));
                                     const b1 = document.createElement('strong'); b1.textContent = formatMoney(tx.amount, c); li.append(b1);
                                     li.append(document.createTextNode(' para '));
                                     const b2 = document.createElement('strong'); b2.textContent = `"${tx.desc}"`; li.append(b2);
@@ -1193,7 +1241,7 @@
                                     const b3 = document.createElement('strong'); b3.textContent = formatMoney(baseNeededForThisTx, base); li.append(b3);
                                     li.append(document.createTextNode('.'));
                                 } else {
-                                    li.append(document.createTextNode('You need '));
+                                    li.append(document.createTextNode(`[${p.name}] You need `));
                                     const b1 = document.createElement('strong'); b1.textContent = formatMoney(tx.amount, c); li.append(b1);
                                     li.append(document.createTextNode(' for '));
                                     const b2 = document.createElement('strong'); b2.textContent = `"${tx.desc}"`; li.append(b2);
@@ -1214,17 +1262,17 @@
                     altTotalsText.push(formatMoney(totalExpensesInOtherCurrency[c], c));
                 }
 
-                let totalLabelText = appData.config.language === 'es' ? 'Total a Cambiar' : 'Total to Exchange';
+                let totalLabelText = currentLockLang === 'es' ? 'Total a Cambiar' : 'Total to Exchange';
 
                 const spanTotal = document.createElement('span');
-                spanTotal.append(document.createTextNode(`${t('exTotalLbl')} `));
+                spanTotal.append(document.createTextNode(`${currentLockLang === 'es' ? 'Total Gastos en otra moneda:' : 'Total Expenses in other currency:'} `));
                 const bAlt = document.createElement('strong'); bAlt.textContent = altTotalsText.join(' + '); spanTotal.append(bAlt);
                 spanTotal.append(document.createTextNode(` | ${totalLabelText} (${base}): `));
                 const bBase = document.createElement('strong'); bBase.textContent = formatMoney(totalBaseEquivalentToChange, base); spanTotal.append(bBase);
 
                 const btnCopy = document.createElement('button');
                 btnCopy.className = 'btn-copy';
-                btnCopy.textContent = `📋 ${t('btnCopy')} ${formatMoney(totalBaseEquivalentToChange, base)}`;
+                btnCopy.textContent = `📋 ${currentLockLang === 'es' ? 'Copiar' : 'Copy'} ${formatMoney(totalBaseEquivalentToChange, base)}`;
                 btnCopy.onclick = () => copyText(totalBaseEquivalentToChange.toFixed(2));
 
                 exchangeTotalContainer.appendChild(spanTotal);
@@ -1281,7 +1329,7 @@
         }
         
         function copyText(val) {
-            let alertText = appData.config.language === 'es' ? `¡Copiado al portapapeles: ${val}!` : `Copied to clipboard: ${val}!`;
+            let alertText = (appData ? appData.config.language : currentLockLang) === 'es' ? `¡Copiado al portapapeles: ${val}!` : `Copied to clipboard: ${val}!`;
             navigator.clipboard.writeText(val).then(() => alert(alertText));
         }
 
