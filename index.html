@@ -1074,20 +1074,18 @@
             badge.className = 'api-badge loading';
             badge.innerHTML = 'Sincronizando...';
             
-            const base = appData.config.baseCurrency;
             try {
-                const response = await fetch(`https://open.er-api.com/v6/latest/${base}`);
+                const response = await fetch(`https://open.er-api.com/v6/latest/USD`);
                 const data = await response.json();
                 
                 if (data && data.rates) {
+                    appData.config.rates['USD'] = 1.00;
                     appData.config.altCurrencies.forEach(alt => {
                         alt = alt.trim().toUpperCase();
                         if (data.rates[alt]) {
-                            let rate = data.rates[alt];
-                            appData.config.rates[alt] = parseFloat(rate.toFixed(4));
+                            appData.config.rates[alt] = parseFloat(data.rates[alt].toFixed(4));
                         }
                     });
-                    appData.config.rates[base] = 1.00;
                     
                     appData.config.lastFetchDate = dateStr || new Date().toDateString();
                     saveDataWithoutFullReset();
@@ -1112,17 +1110,16 @@
 
         function renderRateInputs() {
             const container = document.getElementById('rates-container');
-            const base = appData.config.baseCurrency;
-            container.innerHTML = `<label style="display: block; font-size: 12px; color: var(--text-light); margin-bottom: 6px;">${appData.config.language === 'es' ? 'Tasas de Cambio (1 ' + base + ' = X Moneda):' : 'Exchange Rates (1 ' + base + ' = X Currency):'}</label>`;
+            container.innerHTML = `<label style="display: block; font-size: 12px; color: var(--text-light); margin-bottom: 6px;">${appData.config.language === 'es' ? 'Tasas de Cambio (1 USD = X Moneda):' : 'Exchange Rates (1 USD = X Currency):'}</label>`;
             
             appData.config.altCurrencies.forEach(alt => {
                 alt = alt.trim().toUpperCase();
-                if(!alt || alt === base) return;
+                if(!alt || alt === 'USD') return;
                 if(!appData.config.rates[alt]) appData.config.rates[alt] = 1.00;
                 
                 container.innerHTML += `
                     <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
-                        <span style="font-weight: 500; min-width: 50px;">1 ${base} =</span>
+                        <span style="font-weight: 500; min-width: 50px;">1 USD =</span>
                         <input type="number" step="0.0001" id="rate-${alt}" value="${appData.config.rates[alt]}" style="flex: 1;">
                         <span style="font-weight: 500; min-width: 50px;">${alt}</span>
                     </div>
@@ -1213,7 +1210,7 @@
             const altInput = document.getElementById('cfg-alt').value;
             appData.config.altCurrencies = altInput.split(',').map(c => c.trim().toUpperCase()).filter(c => c);
 
-            appData.config.rates[appData.config.baseCurrency] = 1.00;
+            appData.config.rates['USD'] = 1.00;
             appData.config.altCurrencies.forEach(alt => {
                 const input = document.getElementById(`rate-${alt}`);
                 if(input) {
@@ -1237,35 +1234,32 @@
             }
         }
 
-        // --- Multi-Currency Conversion Helper ---
-        // Converts any amount from currency 'curr' to 'base'
-        function convertToBaseCurrency(amount, curr, base, rates) {
+        // --- Robust Multi-Currency Conversion Helpers ---
+        // Converts any amount from currency 'curr' into USD as an intermediate standard
+        function toUSD(amount, curr, rates) {
             curr = curr.toUpperCase().trim();
-            base = base.toUpperCase().trim();
-            if (curr === base) return amount;
-
-            let rateToAlt = rates[curr]; // 1 Base = X Alt (e.g. 1 USD = 505 CRC)
-            if (rateToAlt && rateToAlt > 0) {
-                return amount / rateToAlt;
+            if (curr === 'USD') return amount;
+            let rate = rates[curr]; // 1 USD = X Currency
+            if (rate && rate > 0) {
+                return amount / rate;
             }
-
-            // Fallback reverse lookup if rate was stored oppositely
-            let reverseRate = rates[base];
-            if (curr === base) return amount;
-            
             return amount;
         }
 
-        function convertFromBaseCurrency(baseAmount, targetCurr, base, rates) {
+        // Converts USD amount to target currency
+        function fromUSD(usdAmount, targetCurr, rates) {
             targetCurr = targetCurr.toUpperCase().trim();
-            base = base.toUpperCase().trim();
-            if (targetCurr === base) return baseAmount;
-
-            let rateToTarget = rates[targetCurr]; // 1 Base = X Target
-            if (rateToTarget && rateToTarget > 0) {
-                return baseAmount * rateToTarget;
+            if (targetCurr === 'USD') return usdAmount;
+            let rate = rates[targetCurr]; // 1 USD = X Currency
+            if (rate && rate > 0) {
+                return usdAmount * rate;
             }
-            return baseAmount;
+            return usdAmount;
+        }
+
+        function convertCurrency(amount, fromCurr, toCurr, rates) {
+            let usd = toUSD(amount, fromCurr, rates);
+            return fromUSD(usd, toCurr, rates);
         }
 
         function renderTables() {
@@ -1319,7 +1313,7 @@
                     tdOrig.textContent = formatMoney(tx.amount, tx.curr);
                     tr.appendChild(tdOrig);
 
-                    let baseEq = convertToBaseCurrency(tx.amount, tx.curr, base, rates);
+                    let baseEq = convertCurrency(tx.amount, tx.curr, base, rates);
                     const tdBase = document.createElement('td');
                     tdBase.style.color = 'var(--text-light)';
                     tdBase.textContent = formatMoney(baseEq, base);
@@ -1361,7 +1355,7 @@
                 let totalSavBase = 0;
 
                 txs.forEach(t => {
-                    let baseVal = convertToBaseCurrency(t.amount, t.curr, base, rates);
+                    let baseVal = convertCurrency(t.amount, t.curr, base, rates);
                     if (t.cat === 'Ingreso') totalIncBase += baseVal;
                     else if (t.cat === 'Gasto Fijo' || t.cat === 'Gasto Variable') totalExpBase += baseVal;
                     else if (t.cat === 'Gasto Personal') totalPerBase += baseVal;
@@ -1372,7 +1366,7 @@
 
                 let getConvertedValues = (baseVal) => {
                     return uniqueCurrencies.map(curr => {
-                        return convertFromBaseCurrency(baseVal, curr, base, rates);
+                        return convertCurrency(baseVal, base, curr, rates);
                     });
                 };
 
@@ -1424,7 +1418,7 @@
 
                             if (totalExpCurr > totalIncCurr) {
                                 needsAction = true;
-                                let baseNeededForThisTx = convertToBaseCurrency(tx.amount, c, base, rates);
+                                let baseNeededForThisTx = convertCurrency(tx.amount, c, base, rates);
                                 totalBaseEquivalentToChange += baseNeededForThisTx;
 
                                 if (!totalExpensesInOtherCurrency[c]) totalExpensesInOtherCurrency[c] = 0;
@@ -1597,7 +1591,7 @@
             for(let pid in monthData) {
                 let txs = monthData[pid];
                 txs.forEach(t => {
-                    let baseVal = convertToBaseCurrency(t.amount, t.curr, base, rates);
+                    let baseVal = convertCurrency(t.amount, t.curr, base, rates);
                     if (t.cat === 'Ingreso') totalIncBase += baseVal;
                     else if (t.cat === 'Gasto Fijo' || t.cat === 'Gasto Variable') totalExpBase += baseVal;
                     else if (t.cat === 'Gasto Personal') totalPerBase += baseVal;
