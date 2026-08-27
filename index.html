@@ -55,17 +55,39 @@
             max-width: 380px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
             text-align: center;
+        }
+        .lock-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .lock-card h2 { font-size: 18px; text-align: left; }
+        .lock-card p { font-size: 13px; color: var(--text-light); margin-bottom: 16px; text-align: left; }
+        
+        .password-container {
             position: relative;
+            margin-bottom: 12px;
         }
-        .lock-card h2 { font-size: 18px; margin-bottom: 8px; }
-        .lock-card p { font-size: 13px; color: var(--text-light); margin-bottom: 16px; }
-        .lock-card input { margin-bottom: 12px; }
-        .lock-error { color: var(--danger); font-size: 12px; margin-top: 8px; display: none; }
-        .lock-lang-container {
+        .password-container input {
+            width: 100%;
+            padding: 8px 36px 8px 8px;
+        }
+        .toggle-password {
             position: absolute;
-            top: 16px;
-            right: 16px;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: var(--text-light);
+            padding: 4px;
         }
+        .toggle-password:hover { color: var(--text-color); }
+
+        .lock-error { color: var(--danger); font-size: 12px; margin-top: 8px; display: none; text-align: left; }
 
         .header {
             margin-bottom: 20px;
@@ -338,12 +360,15 @@
     <!-- LOCK SCREEN OVERLAY -->
     <div id="lock-screen">
         <div class="lock-card">
-            <div class="lock-lang-container">
+            <div class="lock-header-row">
+                <h2 id="lock-title">🔐 Enter Passphrase</h2>
                 <button class="btn-lang" onclick="toggleLockScreenLanguage()" id="lock-lang-toggle">English 🌐</button>
             </div>
-            <h2 id="lock-title">🔐 Enter Passphrase</h2>
             <p id="lock-desc">Enter your master passphrase to decrypt and unlock your financial dashboard.</p>
-            <input type="password" id="passphrase-input" placeholder="Passphrase..." onkeydown="if(event.key === 'Enter') handleUnlock()">
+            <div class="password-container">
+                <input type="password" id="passphrase-input" placeholder="Passphrase..." onkeydown="if(event.key === 'Enter') handleUnlock()">
+                <button type="button" class="toggle-password" onclick="togglePasswordVisibility()" id="toggle-pwd-btn">👁️</button>
+            </div>
             <button class="btn-primary" onclick="handleUnlock()" id="lock-btn">Unlock</button>
             <div id="lock-error" class="lock-error">Incorrect passphrase or decryption failed.</div>
         </div>
@@ -550,6 +575,18 @@
         function toggleLockScreenLanguage() {
             currentLockLang = currentLockLang === 'es' ? 'en' : 'es';
             updateLockScreenUI();
+        }
+
+        function togglePasswordVisibility() {
+            const pwdInput = document.getElementById('passphrase-input');
+            const toggleBtn = document.getElementById('toggle-pwd-btn');
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                toggleBtn.textContent = '🙈';
+            } else {
+                pwdInput.type = 'password';
+                toggleBtn.textContent = '👁️';
+            }
         }
 
         function updateLockScreenUI() {
@@ -878,7 +915,7 @@
 
         function updateFrequency() {
             appData.config.frequency = document.getElementById('cfg-frequency').value;
-            currentExchangeFilter = 'all'; // Reset filter on frequency change
+            currentExchangeFilter = 'all';
             saveDataWithoutFullReset();
             buildDynamicUI();
             updateCurrencyDropdowns();
@@ -1203,7 +1240,6 @@
             let totalBaseEquivalentToChange = 0;
             let totalExpensesInOtherCurrency = {};
 
-            // Determine periods to check based on filter
             let periodsToCheck = getActivePeriods();
             if (currentExchangeFilter !== 'all') {
                 periodsToCheck = periodsToCheck.filter(p => p.id === currentExchangeFilter);
@@ -1215,7 +1251,6 @@
                     if (['Gasto Fijo', 'Gasto Variable', 'Ahorro'].includes(tx.cat)) {
                         let c = tx.curr;
                         if (altCurrencies.includes(c)) {
-                            // Calculate income and expenses *specifically for this period* to respect the filter
                             let totalIncCurr = txs.filter(t => t.cat === 'Ingreso' && t.curr === c).reduce((acc, t) => acc + t.amount, 0);
                             let totalExpCurr = txs.filter(t => ['Gasto Fijo', 'Gasto Variable', 'Ahorro'].includes(t.cat) && t.curr === c).reduce((acc, t) => acc + t.amount, 0);
 
