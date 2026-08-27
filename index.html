@@ -81,7 +81,7 @@
             background: none;
             border: none;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 14px;
             color: var(--text-light);
             padding: 4px;
         }
@@ -361,28 +361,28 @@
     <div id="lock-screen">
         <div class="lock-card">
             <div class="lock-header-row">
-                <h2 id="lock-title">🔐 Enter Passphrase</h2>
-                <button class="btn-lang" onclick="toggleLockScreenLanguage()" id="lock-lang-toggle">English 🌐</button>
+                <h2 id="lock-title">Autenticación Requerida</h2>
+                <button class="btn-lang" onclick="toggleLockScreenLanguage()" id="lock-lang-toggle">English</button>
             </div>
-            <p id="lock-desc">Enter your master passphrase to decrypt and unlock your financial dashboard.</p>
+            <p id="lock-desc">Ingrese su contraseña maestra para descifrar y acceder a su panel financiero.</p>
             <div class="password-container">
-                <input type="password" id="passphrase-input" placeholder="Passphrase..." onkeydown="if(event.key === 'Enter') handleUnlock()">
-                <button type="button" class="toggle-password" onclick="togglePasswordVisibility()" id="toggle-pwd-btn">👁️</button>
+                <input type="password" id="passphrase-input" placeholder="Contraseña..." onkeydown="if(event.key === 'Enter') handleUnlock()">
+                <button type="button" class="toggle-password" onclick="togglePasswordVisibility()" id="toggle-pwd-btn">Mostrar</button>
             </div>
-            <button class="btn-primary" onclick="handleUnlock()" id="lock-btn">Unlock</button>
-            <div id="lock-error" class="lock-error">Incorrect passphrase or decryption failed.</div>
+            <button class="btn-primary" onclick="handleUnlock()" id="lock-btn">Desbloquear</button>
+            <div id="lock-error" class="lock-error">Contraseña incorrecta o error de descifrado.</div>
         </div>
     </div>
 
     <div class="header">
         <div>
-            <h1 id="txt-app-title">Financial Dashboard</h1>
-            <p id="current-month-year">Current Month</p>
+            <h1 id="txt-app-title">Dashboard Financiero</h1>
+            <p id="current-month-year">Mes Actual</p>
         </div>
         <div class="header-actions">
-            <button class="btn-lang" onclick="toggleLanguage()" id="btn-lang-toggle">English 🌐</button>
+            <button class="btn-lang" onclick="toggleLanguage()" id="btn-lang-toggle">English</button>
             <div id="api-badge" class="api-badge loading">
-                🔄 Connecting API...
+                Sincronizando...
             </div>
         </div>
     </div>
@@ -396,35 +396,35 @@
     <!-- CONFIG TAB -->
     <div id="config-tab-content" class="tab-content">
         <div class="card" style="max-width: 450px; margin: 0 auto;">
-            <h2 id="txt-cfg-title" style="font-size: 16px; margin-bottom: 8px;">Advanced Settings</h2>
+            <h2 id="txt-cfg-title" style="font-size: 16px; margin-bottom: 8px;">Configuración Avanzada</h2>
             <p id="txt-cfg-desc" style="font-size: 12px; color: var(--text-light); margin-bottom: 16px;">
-                Define your budget frequency, base currency, and additional currencies.
+                Defina la frecuencia de presupuesto, la moneda base y las monedas adicionales.
             </p>
             
             <div class="form-group" style="margin-bottom: 12px;">
-                <label id="txt-lbl-freq">Budget Frequency</label>
+                <label id="txt-lbl-freq">Frecuencia de Presupuesto</label>
                 <select id="cfg-frequency" onchange="updateFrequency()">
-                    <option value="mensual">Monthly (1 Period)</option>
-                    <option value="quincenal">Bi-weekly (2 Periods)</option>
-                    <option value="semanal">Weekly (4 Periods)</option>
+                    <option value="mensual">Mensual (1 Periodo)</option>
+                    <option value="quincenal">Quincenal (2 Periodos)</option>
+                    <option value="semanal">Semanal (4 Periodos)</option>
                 </select>
             </div>
 
             <div class="form-group" style="margin-bottom: 12px;">
-                <label id="txt-lbl-base">Base Currency (e.g. USD)</label>
+                <label id="txt-lbl-base">Moneda Base (Ej. USD)</label>
                 <input type="text" id="cfg-base" value="USD" style="text-transform: uppercase;">
             </div>
 
             <div class="form-group" style="margin-bottom: 12px;">
-                <label id="txt-lbl-alt">Additional Currencies (Comma separated, e.g. CRC, EUR)</label>
+                <label id="txt-lbl-alt">Monedas Adicionales (Separadas por comas, Ej. CRC, EUR)</label>
                 <input type="text" id="cfg-alt" value="CRC" style="text-transform: uppercase;">
             </div>
 
-            <button class="btn-secondary" onclick="fetchExchangeRates(true)" id="txt-btn-api">🔄 Force API Update</button>
+            <button class="btn-secondary" onclick="fetchExchangeRates(true)" id="txt-btn-api">Actualizar Tasas de Cambio</button>
 
             <div id="rates-container" style="margin-bottom: 16px;"></div>
             
-            <button class="btn-primary" onclick="saveConfig(true)" id="txt-btn-save">Save Settings</button>
+            <button class="btn-primary" onclick="saveConfig(true)" id="txt-btn-save">Guardar Configuración</button>
             <p id="config-msg" style="color: var(--success); font-size: 12px; margin-top: 8px; display: none; text-align: center;"></p>
         </div>
     </div>
@@ -433,30 +433,30 @@
         let appData = null;
         let masterKey = null;
         let currentLockLang = navigator.language.startsWith('es') ? 'es' : 'en';
-        let currentExchangeFilter = null; // Will be initialized by proximity
+        let currentExchangeFilter = null;
 
         const STORAGE_KEY = 'encryptedBudgetTrackerV1';
 
         const translations = {
             es: {
-                lockTitleUnlock: "🔐 Ingresar Contraseña",
-                lockDescUnlock: "Ingresa tu contraseña maestra para descifrar y desbloquear tu dashboard financiero.",
+                lockTitleUnlock: "Autenticación Requerida",
+                lockDescUnlock: "Ingrese su contraseña maestra para descifrar y acceder a su panel financiero.",
                 lockBtnUnlock: "Desbloquear",
-                lockTitleCreate: "🔑 Crear Contraseña Maestra",
-                lockDescCreate: "Establece una contraseña para cifrar y asegurar tus datos financieros.",
-                lockBtnCreate: "Crear y Empezar",
+                lockTitleCreate: "Crear Contraseña Maestra",
+                lockDescCreate: "Establezca una contraseña segura para cifrar y proteger sus datos financieros.",
+                lockBtnCreate: "Crear y Acceder",
                 lockError: "Contraseña incorrecta o error de descifrado.",
                 appTitle: "Dashboard Financiero",
                 cfgTitle: "Configuración Avanzada",
-                cfgDesc: "Define tu frecuencia de presupuesto, moneda base y monedas adicionales.",
+                cfgDesc: "Defina la frecuencia de presupuesto, la moneda base y las monedas adicionales.",
                 lblFreq: "Frecuencia de Presupuesto",
                 lblBase: "Moneda Base (Ej. USD)",
                 lblAlt: "Monedas Adicionales (Separadas por comas, Ej. CRC, EUR)",
-                btnApi: "🔄 Forzar Actualización de API",
+                btnApi: "Actualizar Tasas de Cambio",
                 btnSave: "Guardar Configuración",
                 msgSaved: "¡Guardado exitosamente!",
                 tabDashboard: "Dashboard",
-                tabConfig: "⚙️ Configuración",
+                tabConfig: "Configuración",
                 freqMensual: "Mensual",
                 freqQuincenal: "Quincenal",
                 freqSemanal: "Semanal",
@@ -470,8 +470,8 @@
                 cardInc: "Ingresos",
                 cardExp: "Gastos Totales",
                 cardSav: "Ahorros",
-                cardRem: "Dinero Restante",
-                exTitle: "💡 Resumen de Conversiones y Gastos por Moneda",
+                cardRem: "Saldo Restante",
+                exTitle: "Resumen de Conversiones y Gastos por Moneda",
                 exTotalLbl: "Total Gastos en otra moneda:",
                 exChangeLbl: "Total a Cambiar",
                 btnCopy: "Copiar",
@@ -488,8 +488,8 @@
                 tblOrig: "Monto Original",
                 tblBase: "Equivalente Base",
                 tblAction: "Acción",
-                btnEdit: "✏️ Editar",
-                btnDelete: "Borrar",
+                btnEdit: "Editar",
+                btnDelete: "Eliminar",
                 typeVar: "Gasto Variable",
                 typeFix: "Gasto Fijo",
                 typeInc: "Ingreso",
@@ -497,12 +497,12 @@
                 months: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
             },
             en: {
-                lockTitleUnlock: "🔐 Enter Passphrase",
-                lockDescUnlock: "Enter your master passphrase to decrypt and unlock your financial dashboard.",
+                lockTitleUnlock: "Authentication Required",
+                lockDescUnlock: "Enter your master passphrase to decrypt and access your financial dashboard.",
                 lockBtnUnlock: "Unlock",
-                lockTitleCreate: "🔑 Create Master Passphrase",
-                lockDescCreate: "Set a passphrase to encrypt and secure your financial data.",
-                lockBtnCreate: "Create & Start",
+                lockTitleCreate: "Create Master Passphrase",
+                lockDescCreate: "Establish a secure passphrase to encrypt and protect your financial data.",
+                lockBtnCreate: "Create & Access",
                 lockError: "Incorrect passphrase or decryption failed.",
                 appTitle: "Financial Dashboard",
                 cfgTitle: "Advanced Settings",
@@ -510,11 +510,11 @@
                 lblFreq: "Budget Frequency",
                 lblBase: "Base Currency (e.g. USD)",
                 lblAlt: "Additional Currencies (Comma separated, e.g. CRC, EUR)",
-                btnApi: "🔄 Force API Update",
+                btnApi: "Update Exchange Rates",
                 btnSave: "Save Settings",
                 msgSaved: "Successfully saved!",
                 tabDashboard: "Dashboard",
-                tabConfig: "⚙️ Settings",
+                tabConfig: "Settings",
                 freqMensual: "Monthly",
                 freqQuincenal: "Bi-weekly",
                 freqSemanal: "Weekly",
@@ -528,10 +528,10 @@
                 cardInc: "Income",
                 cardExp: "Total Expenses",
                 cardSav: "Savings",
-                cardRem: "Remaining Money",
-                exTitle: "💡 Currency Conversion & Expenses Summary",
+                cardRem: "Remaining Balance",
+                exTitle: "Currency Conversion & Expenses Summary",
                 exTotalLbl: "Total Expenses in other currency:",
-                exChangeLbl: "Total to Change",
+                exChangeLbl: "Total to Exchange",
                 btnCopy: "Copy",
                 formDesc: "Description",
                 formAmount: "Amount",
@@ -546,7 +546,7 @@
                 tblOrig: "Original Amount",
                 tblBase: "Base Equivalent",
                 tblAction: "Action",
-                btnEdit: "✏️ Edit",
+                btnEdit: "Edit",
                 btnDelete: "Delete",
                 typeVar: "Variable Expense",
                 typeFix: "Fixed Expense",
@@ -578,25 +578,31 @@
         function togglePasswordVisibility() {
             const pwdInput = document.getElementById('passphrase-input');
             const toggleBtn = document.getElementById('toggle-pwd-btn');
+            const isEs = currentLockLang === 'es';
             if (pwdInput.type === 'password') {
                 pwdInput.type = 'text';
-                toggleBtn.textContent = '🙈';
+                toggleBtn.textContent = isEs ? 'Ocultar' : 'Hide';
             } else {
                 pwdInput.type = 'password';
-                toggleBtn.textContent = '👁️';
+                toggleBtn.textContent = isEs ? 'Mostrar' : 'Show';
             }
         }
 
         function updateLockScreenUI() {
             const encryptedData = localStorage.getItem(STORAGE_KEY);
             const isFirstTime = !encryptedData;
+            const isEs = currentLockLang === 'es';
 
-            document.getElementById('lock-lang-toggle').innerText = currentLockLang === 'es' ? 'English 🌐' : 'Español 🌐';
+            document.getElementById('lock-lang-toggle').innerText = isEs ? 'English' : 'Español';
             document.getElementById('lock-title').innerText = isFirstTime ? lt('lockTitleCreate') : lt('lockTitleUnlock');
             document.getElementById('lock-desc').innerText = isFirstTime ? lt('lockDescCreate') : lt('lockDescUnlock');
             document.getElementById('lock-btn').innerText = isFirstTime ? lt('lockBtnCreate') : lt('lockBtnUnlock');
             document.getElementById('lock-error').innerText = lt('lockError');
-            document.getElementById('passphrase-input').placeholder = currentLockLang === 'es' ? 'Contraseña...' : 'Passphrase...';
+            document.getElementById('passphrase-input').placeholder = isEs ? 'Contraseña...' : 'Passphrase...';
+            
+            const toggleBtn = document.getElementById('toggle-pwd-btn');
+            const pwdInput = document.getElementById('passphrase-input');
+            toggleBtn.textContent = pwdInput.type === 'password' ? (isEs ? 'Mostrar' : 'Show') : (isEs ? 'Ocultar' : 'Hide');
         }
 
         // --- Crypto Helpers ---
@@ -737,7 +743,7 @@
             document.getElementById('txt-lbl-alt').innerText = t('lblAlt');
             document.getElementById('txt-btn-api').innerText = t('btnApi');
             document.getElementById('txt-btn-save').innerText = t('btnSave');
-            document.getElementById('btn-lang-toggle').innerText = appData.config.language === 'es' ? 'English 🌐' : 'Español 🌐';
+            document.getElementById('btn-lang-toggle').innerText = appData.config.language === 'es' ? 'English' : 'Español';
 
             const now = new Date();
             let monthName = t('months')[now.getMonth()];
@@ -765,10 +771,8 @@
             const day = new Date().getDate();
 
             if (freq === 'quincenal') {
-                // p1 = Quincena I, p2 = Quincena II
                 currentExchangeFilter = (day <= 15) ? 'p1' : 'p2';
             } else if (freq === 'semanal') {
-                // p1 = Semana 1 (1-7), p2 = Semana 2 (8-14), p3 = Semana 3 (15-21), p4 = Semana 4 (22-31)
                 if (day <= 7) currentExchangeFilter = 'p1';
                 else if (day <= 14) currentExchangeFilter = 'p2';
                 else if (day <= 21) currentExchangeFilter = 'p3';
@@ -944,14 +948,14 @@
             } else {
                 const badge = document.getElementById('api-badge');
                 badge.className = 'api-badge success';
-                badge.innerHTML = `✅ T.C. Sincronizado Hoy`;
+                badge.innerHTML = 'Sincronizado';
             }
         }
 
         async function fetchExchangeRates(isManualClick, dateStr = null) {
             const badge = document.getElementById('api-badge');
             badge.className = 'api-badge loading';
-            badge.innerHTML = '🔄 Obteniendo TC...';
+            badge.innerHTML = 'Sincronizando...';
             
             const base = appData.config.baseCurrency;
             try {
@@ -973,7 +977,7 @@
                     renderRateInputs();
                     
                     badge.className = 'api-badge success';
-                    badge.innerHTML = `✅ Actualizado (${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`;
+                    badge.innerHTML = 'Actualizado';
                     
                     if(isManualClick) {
                         alert(appData.config.language === 'es' ? "¡Tipos de cambio actualizados exitosamente!" : "Exchange rates successfully updated!");
@@ -982,7 +986,7 @@
             } catch (error) {
                 console.error("Error al obtener tipo de cambio:", error);
                 badge.className = 'api-badge';
-                badge.innerHTML = '⚠️ Usando T.C. Guardado';
+                badge.innerHTML = 'Modo Local';
                 if(isManualClick) {
                     alert(appData.config.language === 'es' ? "No se pudo conectar a la API." : "Could not connect to API.");
                 }
@@ -1092,7 +1096,7 @@
                 }
             });
 
-            document.getElementById('api-badge').innerHTML = '🔒 Configuración Manual';
+            document.getElementById('api-badge').innerHTML = 'Configuración Manual';
             document.getElementById('api-badge').className = 'api-badge';
 
             buildDynamicUI();
@@ -1254,7 +1258,6 @@
             let totalBaseEquivalentToChange = 0;
             let totalExpensesInOtherCurrency = {};
 
-            // Strictly evaluate only the currently selected filtered period
             let periodsToCheck = getActivePeriods().filter(p => p.id === currentExchangeFilter);
 
             periodsToCheck.forEach(p => {
@@ -1277,11 +1280,11 @@
 
                                 const li = document.createElement('li');
                                 if (currentLockLang === 'es') {
-                                    li.append(document.createTextNode(`[${p.name}] Necesitas `));
+                                    li.append(document.createTextNode(`[${p.name}] Necesita `));
                                     const b1 = document.createElement('strong'); b1.textContent = formatMoney(tx.amount, c); li.append(b1);
                                     li.append(document.createTextNode(' para '));
                                     const b2 = document.createElement('strong'); b2.textContent = `"${tx.desc}"`; li.append(b2);
-                                    li.append(document.createTextNode('. Ocupas cambiar '));
+                                    li.append(document.createTextNode('. Requiere cambiar '));
                                     const b3 = document.createElement('strong'); b3.textContent = formatMoney(baseNeededForThisTx, base); li.append(b3);
                                     li.append(document.createTextNode('.'));
                                 } else {
@@ -1316,7 +1319,7 @@
 
                 const btnCopy = document.createElement('button');
                 btnCopy.className = 'btn-copy';
-                btnCopy.textContent = `📋 ${currentLockLang === 'es' ? 'Copiar' : 'Copy'} ${formatMoney(totalBaseEquivalentToChange, base)}`;
+                btnCopy.textContent = `${currentLockLang === 'es' ? 'Copiar' : 'Copy'} ${formatMoney(totalBaseEquivalentToChange, base)}`;
                 btnCopy.onclick = () => copyText(totalBaseEquivalentToChange.toFixed(2));
 
                 exchangeTotalContainer.appendChild(spanTotal);
