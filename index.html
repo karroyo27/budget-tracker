@@ -1180,10 +1180,10 @@
                     let bccrRes = await fetch('https://apis.gometa.org/tdc/tdc.json');
                     let bccrData = await bccrRes.json();
                     if (bccrData && bccrData.venta) {
-                        bccrSale = parseFloat(bccrData.venta);
+                        bccrSale = parseFloat(bccrData.venta); // Ej: 505 colones por 1 dólar
                     }
                 } catch (err) {
-                    console.warn("No se pudo conectar con BCCR API, usando respaldo global.", err);
+                    console.warn("No se pudo conectar con BCCR API", err);
                 }
 
                 let globalRates = {};
@@ -1194,37 +1194,28 @@
                         globalRates = globalData.rates;
                     }
                 } catch (err) {
-                    console.warn("No se pudo conectar con API global.", err);
+                    console.warn("No se pudo conectar con API global", err);
                 }
 
-                if (base === 'CRC' && bccrSale) {
-                    ratesMap['USD'] = parseFloat((1 / bccrSale).toFixed(6));
-                    appData.config.altCurrencies.forEach(alt => {
-                        alt = alt.trim().toUpperCase();
-                        if (alt === 'USD') return;
-                        if (globalRates[alt] && globalRates['CRC']) {
-                            let crcToUsd = 1 / bccrSale;
-                            ratesMap[alt] = parseFloat((crcToUsd * globalRates[alt]).toFixed(4));
-                        }
-                    });
-                } else if (base === 'USD' && bccrSale) {
-                    ratesMap['CRC'] = bccrSale;
-                    appData.config.altCurrencies.forEach(alt => {
-                        alt = alt.trim().toUpperCase();
-                        if (alt === 'CRC') return;
-                        if (globalRates[alt]) {
-                            ratesMap[alt] = parseFloat(globalRates[alt].toFixed(4));
-                        }
-                    });
+                if (base === 'USD' && bccrSale) {
+                    ratesMap['CRC'] = bccrSale; // 1 USD = 505 CRC
+                } else if (base === 'CRC' && bccrSale) {
+                    ratesMap['USD'] = 1 / bccrSale; // 1 CRC = 0.00198 USD
                 } else {
-                    let baseToUsd = globalRates[base] || 1.00;
-                    appData.config.altCurrencies.forEach(alt => {
-                        alt = alt.trim().toUpperCase();
-                        if (globalRates[alt]) {
-                            ratesMap[alt] = parseFloat((globalRates[alt] / baseToUsd).toFixed(4));
-                        }
-                    });
+                    ratesMap['CRC'] = 505.00;
+                    ratesMap['USD'] = 0.00198;
                 }
+
+                // Añadir monedas adicionales usando ER API si existen
+                appData.config.altCurrencies.forEach(alt => {
+                    alt = alt.trim().toUpperCase();
+                    if (alt === base) return;
+                    if (globalRates[alt]) {
+                        let baseRateToUsd = globalRates[base] || 1.00;
+                        let altRateToUsd = globalRates[alt];
+                        ratesMap[alt] = altRateToUsd / baseRateToUsd;
+                    }
+                });
 
                 ratesMap[base] = 1.00;
                 appData.config.rates = ratesMap;
@@ -1237,10 +1228,10 @@
                 badge.innerHTML = 'Sincronizado BCCR';
                 
                 if(isManualClick) {
-                    alert(appData.config.language === 'es' ? "¡Tasas de cambio actualizadas con valores oficiales del BCCR!" : "Exchange rates successfully updated with official BCCR values!");
+                    alert(appData.config.language === 'es' ? "¡Tasas de cambio actualizadas con valores oficiales!" : "Exchange rates successfully updated!");
                 }
             } catch (error) {
-                console.error("Error general al obtener tipos de cambio:", error);
+                console.error("Error general:", error);
                 badge.className = 'api-badge';
                 badge.innerHTML = 'Modo Local';
                 if(isManualClick) {
@@ -1267,7 +1258,7 @@
             
             currenciesToShow.forEach(alt => {
                 if(!appData.config.rates[alt]) {
-                    appData.config.rates[alt] = (base === 'CRC' && alt === 'USD') ? 0.00198 : ((base === 'USD' && alt === 'CRC') ? 505.00 : 1.00);
+                    appData.config.rates[alt] = (base === 'USD' && alt === 'CRC') ? 505.00 : 1.00;
                 }
                 
                 container.innerHTML += `
@@ -1395,7 +1386,7 @@
             }
         }
 
-        // --- Core Multi-Currency Conversion Engine Robust & Cross-Safe ---
+        // --- MOTOR DE CONVERSIÓN CORREGIDO Y ROBUSTO ---
         function convertCurrency(amount, fromCurr, toCurr, base, rates) {
             fromCurr = fromCurr.toUpperCase().trim();
             toCurr = toCurr.toUpperCase().trim();
@@ -1403,42 +1394,41 @@
 
             if (fromCurr === toCurr) return amount;
 
-            let rateFrom = 1.00;
+            // Paso 1: Convertir de fromCurr a la moneda Base
+            let amountInBase = amount;
             if (fromCurr !== base) {
-                if (rates[fromCurr] && rates[fromCurr] > 0) {
-                    rateFrom = rates[fromCurr];
-                } else if (rates[base] && rates[base] > 0) {
-                    rateFrom = 1.00 / rates[base];
-                } else if (fromCurr === 'USD' && base === 'CRC') {
-                    rateFrom = 0.00198;
-                } else if (fromCurr === 'CRC' && base === 'USD') {
-                    rateFrom = 505.00;
+                let rate = rates[fromCurr];
+                if (!rate || rate <= 0) {
+                    // Respaldos de emergencia si no hay tasa definida
+                    if (fromCurr === 'CRC' && base === 'USD') rate = 0.00198; 
+                    else if (fromCurr === 'USD' && base === 'CRC') rate = 505.00;
+                    else rate = 1.00;
                 }
-            }
 
-            let correctedAmountInBase = 0;
-            if (fromCurr === base) {
-                correctedAmountInBase = amount;
-            } else {
-                let r = rates[fromCurr];
-                if (r && r > 0) {
-                    correctedAmountInBase = r < 1 ? (amount / r) : (amount * r);
+                // Lógica limpia: si la base es USD y la moneda es CRC (tasa 505), dividimos entre 505. Si la base es CRC y la moneda es USD (tasa 0.00198 o 505 manejada con sentido), multiplicamos o dividimos correctamente.
+                if (base === 'USD' && fromCurr === 'CRC') {
+                    amountInBase = amount / (rates['CRC'] > 1 ? rates['CRC'] : (1 / (rates['USD'] || 0.00198)));
+                } else if (base === 'CRC' && fromCurr === 'USD') {
+                    amountInBase = amount * (rates['USD'] > 1 ? rates['USD'] : (rates['CRC'] || 505.00));
                 } else {
-                    correctedAmountInBase = amount;
+                    // Genérico directo
+                    amountInBase = amount / rate;
                 }
             }
 
-            if (toCurr === base) {
-                let directRate = rates[fromCurr];
-                if(fromCurr !== base && directRate) {
-                    return directRate < 1 ? (amount / directRate) : (amount * directRate);
-                }
-                return amount;
+            if (toCurr === base) return amountInBase;
+
+            // Paso 2: Convertir de Base a toCurr destino
+            let targetRate = rates[toCurr];
+            if (!targetRate || targetRate <= 0) targetRate = 1.00;
+
+            if (base === 'USD' && toCurr === 'CRC') {
+                return amountInBase * (rates['CRC'] > 1 ? rates['CRC'] : 505.00);
+            } else if (base === 'CRC' && toCurr === 'USD') {
+                return amountInBase * (rates['USD'] < 1 ? rates['USD'] : (1 / (rates['CRC'] || 505.00)));
             }
 
-            let rateTo = rates[toCurr] || 1.00;
-            let finalBaseVal = rates[fromCurr] < 1 ? (amount / rates[fromCurr]) : (amount * rates[fromCurr]);
-            return rateTo < 1 ? (finalBaseVal * rateTo) : (finalBaseVal / rateTo);
+            return amountInBase * targetRate;
         }
 
         function renderTables() {
@@ -1875,7 +1865,6 @@
             navigator.clipboard.writeText(val).then(() => alert(alertText));
         }
 
-        // Initialize lock screen UI with device language on load
         updateLockScreenUI();
     </script>
 </body>
