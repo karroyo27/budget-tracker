@@ -878,6 +878,7 @@
 
         function updateFrequency() {
             appData.config.frequency = document.getElementById('cfg-frequency').value;
+            currentExchangeFilter = 'all'; // Reset filter on frequency change
             saveDataWithoutFullReset();
             buildDynamicUI();
             updateCurrencyDropdowns();
@@ -1202,6 +1203,7 @@
             let totalBaseEquivalentToChange = 0;
             let totalExpensesInOtherCurrency = {};
 
+            // Determine periods to check based on filter
             let periodsToCheck = getActivePeriods();
             if (currentExchangeFilter !== 'all') {
                 periodsToCheck = periodsToCheck.filter(p => p.id === currentExchangeFilter);
@@ -1213,14 +1215,9 @@
                     if (['Gasto Fijo', 'Gasto Variable', 'Ahorro'].includes(tx.cat)) {
                         let c = tx.curr;
                         if (altCurrencies.includes(c)) {
-                            let totalIncCurr = 0;
-                            getActivePeriods().forEach(hp => {
-                                (appData.periods[hp.id] || []).filter(t => t.cat === 'Ingreso' && t.curr === c).forEach(t => totalIncCurr += t.amount);
-                            });
-                            let totalExpCurr = 0;
-                            getActivePeriods().forEach(hp => {
-                                (appData.periods[hp.id] || []).filter(t => ['Gasto Fijo', 'Gasto Variable', 'Ahorro'].includes(t.cat) && t.curr === c).forEach(t => totalExpCurr += t.amount);
-                            });
+                            // Calculate income and expenses *specifically for this period* to respect the filter
+                            let totalIncCurr = txs.filter(t => t.cat === 'Ingreso' && t.curr === c).reduce((acc, t) => acc + t.amount, 0);
+                            let totalExpCurr = txs.filter(t => ['Gasto Fijo', 'Gasto Variable', 'Ahorro'].includes(t.cat) && t.curr === c).reduce((acc, t) => acc + t.amount, 0);
 
                             if (totalExpCurr > totalIncCurr) {
                                 needsAction = true;
