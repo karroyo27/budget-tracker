@@ -1180,13 +1180,12 @@
                     let bccrRes = await fetch('https://apis.gometa.org/tdc/tdc.json');
                     let bccrData = await bccrRes.json();
                     if (bccrData && bccrData.venta) {
-                        bccrSale = parseFloat(bccrData.venta); // Ej: 505 CRC por 1 USD
+                        bccrSale = parseFloat(bccrData.venta);
                     }
                 } catch (err) {
                     console.warn("Usando tasa por defecto BCCR", err);
                 }
 
-                // Guardar la tasa estándar de cuántos colones vale 1 dólar
                 ratesMap['CRC'] = bccrSale;
                 ratesMap['USD'] = 1.00;
 
@@ -1576,38 +1575,34 @@
                 txs.forEach(tx => {
                     if (['Gasto Fijo', 'Gasto Variable', 'Gasto Personal', 'Ahorro'].includes(tx.cat)) {
                         let c = tx.curr.toUpperCase().trim();
+                        // Forzamos la evaluación de transacciones en moneda distinta a la base (ej: CRC vs USD)
                         if (c !== base) {
-                            let totalIncCurr = txs.filter(t => t.cat === 'Ingreso' && t.curr.toUpperCase().trim() === c).reduce((acc, t) => acc + t.amount, 0);
-                            let totalExpCurr = txs.filter(t => ['Gasto Fijo', 'Gasto Variable', 'Gasto Personal', 'Ahorro'].includes(t.cat) && t.curr.toUpperCase().trim() === c).reduce((acc, t) => acc + t.amount, 0);
+                            needsAction = true;
+                            let baseNeededForThisTx = convertCurrency(tx.amount, c, base, base, rates);
+                            totalBaseEquivalentToChange += baseNeededForThisTx;
 
-                            if (totalExpCurr > totalIncCurr) {
-                                needsAction = true;
-                                let baseNeededForThisTx = convertCurrency(tx.amount, c, base, base, rates);
-                                totalBaseEquivalentToChange += baseNeededForThisTx;
+                            if (!totalExpensesInOtherCurrency[c]) totalExpensesInOtherCurrency[c] = 0;
+                            totalExpensesInOtherCurrency[c] += tx.amount;
 
-                                if (!totalExpensesInOtherCurrency[c]) totalExpensesInOtherCurrency[c] = 0;
-                                totalExpensesInOtherCurrency[c] += tx.amount;
-
-                                const li = document.createElement('li');
-                                if (currentLockLang === 'es') {
-                                    li.append(document.createTextNode(`[${p.name}] Necesita `));
-                                    const b1 = document.createElement('strong'); b1.textContent = formatMoney(tx.amount, c); li.append(b1);
-                                    li.append(document.createTextNode(' para '));
-                                    const b2 = document.createElement('strong'); b2.textContent = `"${tx.desc}"`; li.append(b2);
-                                    li.append(document.createTextNode('. Requiere cambiar '));
-                                    const b3 = document.createElement('strong'); b3.textContent = formatMoney(baseNeededForThisTx, base); li.append(b3);
-                                    li.append(document.createTextNode('.'));
-                                } else {
-                                    li.append(document.createTextNode(`[${p.name}] You need `));
-                                    const b1 = document.createElement('strong'); b1.textContent = formatMoney(tx.amount, c); li.append(b1);
-                                    li.append(document.createTextNode(' for '));
-                                    const b2 = document.createElement('strong'); b2.textContent = `"${tx.desc}"`; li.append(b2);
-                                    li.append(document.createTextNode('. You need to exchange '));
-                                    const b3 = document.createElement('strong'); b3.textContent = formatMoney(baseNeededForThisTx, base); li.append(b3);
-                                    li.append(document.createTextNode('.'));
-                                }
-                                exchangeBullets.appendChild(li);
+                            const li = document.createElement('li');
+                            if (currentLockLang === 'es') {
+                                li.append(document.createTextNode(`[${p.name}] Gasto en `));
+                                const b1 = document.createElement('strong'); b1.textContent = formatMoney(tx.amount, c); li.append(b1);
+                                li.append(document.createTextNode(' para '));
+                                const b2 = document.createElement('strong'); b2.textContent = `"${tx.desc}"`; li.append(b2);
+                                li.append(document.createTextNode('. Equivale a '));
+                                const b3 = document.createElement('strong'); b3.textContent = formatMoney(baseNeededForThisTx, base); li.append(b3);
+                                li.append(document.createTextNode('.'));
+                            } else {
+                                li.append(document.createTextNode(`[${p.name}] Expense in `));
+                                const b1 = document.createElement('strong'); b1.textContent = formatMoney(tx.amount, c); li.append(b1);
+                                li.append(document.createTextNode(' for '));
+                                const b2 = document.createElement('strong'); b2.textContent = `"${tx.desc}"`; li.append(b2);
+                                li.append(document.createTextNode('. Equivalent to '));
+                                const b3 = document.createElement('strong'); b3.textContent = formatMoney(baseNeededForThisTx, base); li.append(b3);
+                                li.append(document.createTextNode('.'));
                             }
+                            exchangeBullets.appendChild(li);
                         }
                     }
                 });
