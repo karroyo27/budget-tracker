@@ -508,10 +508,10 @@
             </div>
 
             <div class="form-group" style="margin-bottom: 12px;">
-                <label id="txt-lbl-scope">Rango de Análisis de Conversión</label>
+                <label id="txt-lbl-scope">Periodo por Defecto en Conversiones</label>
                 <select id="cfg-exchange-scope" onchange="saveConfig(false)">
-                    <option value="current">Solo Periodo Actual</option>
-                    <option value="current_plus_next">Periodo Actual + Siguiente (+1)</option>
+                    <option value="current">Periodo Actual</option>
+                    <option value="current_plus_next">Periodo Actual + 1 (Siguiente)</option>
                 </select>
             </div>
 
@@ -547,7 +547,7 @@
                 lblFreq: "Frecuencia de Presupuesto",
                 lblBase: "Moneda Base (Ej. USD, CRC)",
                 lblAlt: "Monedas Adicionales (Separadas por comas, Ej. USD, EUR)",
-                lblScope: "Rango de Análisis de Conversión",
+                lblScope: "Periodo por Defecto en Conversiones",
                 btnApi: "Actualizar Tasas de Cambio BCCR / API",
                 btnSave: "Guardar Configuración",
                 msgSaved: "¡Guardado exitosamente!",
@@ -615,7 +615,7 @@
                 lblFreq: "Budget Frequency",
                 lblBase: "Base Currency (e.g. USD, CRC)",
                 lblAlt: "Additional Currencies (Comma separated, e.g. USD, EUR)",
-                lblScope: "Conversion Analysis Scope",
+                lblScope: "Default Period in Conversions",
                 btnApi: "Update Exchange Rates BCCR / API",
                 btnSave: "Save Settings",
                 msgSaved: "Successfully saved!",
@@ -907,17 +907,27 @@
         function setDefaultExchangeFilter() {
             const freq = appData.config.frequency;
             const day = new Date().getDate();
+            const periods = getActivePeriods();
 
+            let baseIndex = 0;
             if (freq === 'quincenal') {
-                currentExchangeFilter = (day <= 15) ? 'p1' : 'p2';
+                baseIndex = (day <= 15) ? 0 : 1;
             } else if (freq === 'semanal') {
-                if (day <= 7) currentExchangeFilter = 'p1';
-                else if (day <= 14) currentExchangeFilter = 'p2';
-                else if (day <= 21) currentExchangeFilter = 'p3';
-                else currentExchangeFilter = 'p4';
+                if (day <= 7) baseIndex = 0;
+                else if (day <= 14) baseIndex = 1;
+                else if (day <= 21) baseIndex = 2;
+                else baseIndex = 3;
             } else {
-                currentExchangeFilter = 'p1';
+                baseIndex = 0;
             }
+
+            // Si el setting es "current_plus_next", sumamos 1 al índice si es posible
+            let scope = appData.config.exchangeScope || 'current';
+            if (scope === 'current_plus_next') {
+                baseIndex = (baseIndex + 1) % periods.length;
+            }
+
+            currentExchangeFilter = periods[baseIndex] ? periods[baseIndex].id : periods[0].id;
         }
 
         function getActivePeriods() {
@@ -1137,7 +1147,6 @@
                         alt = alt.trim().toUpperCase();
                         if (alt === 'USD') return;
                         if (globalRates[alt] && globalRates['CRC']) {
-                            // Cruzado: 1 CRC = (CRC/USD) * (USD/ALT)
                             let crcToUsd = 1 / bccrSale;
                             ratesMap[alt] = parseFloat((crcToUsd * globalRates[alt]).toFixed(4));
                         }
@@ -1152,7 +1161,6 @@
                         }
                     });
                 } else {
-                    // Respaldo puramente global si BCCR no responde
                     let baseToUsd = globalRates[base] || 1.00;
                     appData.config.altCurrencies.forEach(alt => {
                         alt = alt.trim().toUpperCase();
@@ -1189,7 +1197,7 @@
             const newBase = document.getElementById('cfg-base').value.trim().toUpperCase();
             if(newBase && newBase !== appData.config.baseCurrency) {
                 appData.config.baseCurrency = newBase;
-                fetchExchangeRates(false); // Fuerza actualización automática inmediata al cambiar la moneda base
+                fetchExchangeRates(false); // Dispara actualización automática inmediata al cambiar moneda base
             }
         }
 
@@ -1314,6 +1322,7 @@
                 }
             });
 
+            setDefaultExchangeFilter();
             document.getElementById('api-badge').innerHTML = 'Configuración Manual';
             document.getElementById('api-badge').className = 'api-badge';
 
@@ -1338,24 +1347,20 @@
 
             if (fromCurr === toCurr) return amount;
 
-            // Obtener tasa de 'fromCurr' respecto a la Base (1 Base = X fromCurr)
             let rateFrom = 1.00;
             if (fromCurr !== base) {
                 rateFrom = rates[fromCurr];
                 if (!rateFrom || rateFrom <= 0) {
-                    // Búsqueda inversa de respaldo por si la tasa fue ingresada al revés
                     let invRate = rates[base];
                     if (fromCurr === base) rateFrom = 1.00;
                     else rateFrom = invRate ? (1 / invRate) : 1.00;
                 }
             }
 
-            // Convertir primeramente a la moneda Base
             let amountInBase = amount / (rateFrom || 1.00);
 
             if (toCurr === base) return amountInBase;
 
-            // Obtener tasa de 'toCurr' respecto a la Base (1 Base = X toCurr)
             let rateTo = rates[toCurr];
             if (!rateTo || rateTo <= 0) {
                 rateTo = 1.00;
@@ -1523,19 +1528,7 @@
             let totalBaseEquivalentToChange = 0;
             let totalExpensesInOtherCurrency = {};
 
-            let periodsList = getActivePeriods();
-            let selectedFilterIndex = periodsList.findIndex(p => p.id === currentExchangeFilter);
-            let periodsToCheck = [];
-
-            if (selectedFilterIndex !== -1) {
-                periodsToCheck.push(periodsList[selectedFilterIndex]);
-                let scope = appData.config.exchangeScope || 'current';
-                if (scope === 'current_plus_next' && selectedFilterIndex + 1 < periodsList.length) {
-                    periodsToCheck.push(periodsList[selectedFilterIndex + 1]);
-                }
-            } else {
-                periodsToCheck = periodsList.filter(p => p.id === currentExchangeFilter);
-            }
+            let periodsToCheck = getActivePeriods().filter(p => p.id === currentExchangeFilter);
 
             periodsToCheck.forEach(p => {
                 let txs = appData.periods[p.id] || [];
