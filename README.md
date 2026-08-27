@@ -1,45 +1,52 @@
-# Notion Budget Tracker 📊
+# 📊 Secure Financial Dashboard
 
-A lightweight, fully responsive, and multi-currency financial budget tracker designed to be embedded directly into Notion or used as a standalone web app on tablets and desktops. It features real-time currency conversion, dynamic budgeting periods (monthly, bi-weekly, or weekly), and an automated conversion exchange summary.
+A secure, fully client-side, multi-currency financial tracker designed for privacy. It runs entirely in the browser via GitHub Pages, with all local data encrypted at rest using industry-standard cryptography. No external servers, no tracking, and zero database dependencies.
+
+---
+
+## 🔒 Security Architecture
+
+This application is built with security and data privacy at its core:
+
+* **Encryption at Rest (AES-GCM 256-bit):** All your financial transactions, settings, and categories are encrypted locally using a master passphrase combined with `PBKDF2` key derivation (100,000 iterations) and random salts via the native browser Web Crypto API.
+* **Passphrase-Protected Gate:** Upon loading the application, a lock screen prevents any unauthorized access to your stored data unless the correct passphrase is provided.
+* **Zero-Knowledge Architecture:** Your passphrase never leaves your device. Data is encrypted before being stored in browser `localStorage`.
+* **XSS Mitigation:** All UI elements and user-supplied descriptions are rendered safely using secure DOM APIs (`.textContent`) rather than unescaped string injection.
+* **Content Security Policy (CSP):** Strict CSP headers are enforced to prevent unauthorized script execution or cross-site resource loading.
 
 ---
 
 ## ✨ Key Features
 
-* **Multi-Currency Support & Robust Symbols**: Define a base currency and multiple additional currencies. Symbols (`$`, `₡`, `€`, etc.) are securely handled across all devices and browsers.
-* **Dynamic Budget Frequencies**: Choose between **Monthly** (1 period), **Bi-Weekly / Quincenal** (2 periods), or **Weekly** (4 periods) from the configuration panel, and the navigation tabs will adapt automatically.
-* **Smart Dashboard Calculations**:
-  * **Income & Remaining Balance**: Represented as global financial pools converted across all active currencies using live/manual exchange rates.
-  * **Expenses & Savings**: Show direct real totals accumulated per currency so you can track exact financial obligations.
-  * **Visual Overdraft Indicator**: Remaining balance turns green when positive and red if you enter a deficit.
-* **Automated Currency Conversion Helper**: If your expenses or savings in a secondary currency exceed the income in that same currency, the app calculates precisely how much base currency you need to exchange.
-* **Local Storage Persistence**: All your transactions, configurations, and custom exchange rates are safely stored locally in your browser/Notion widget.
-* **Quick Management**: Easily add, edit, or delete transactions with pre-populated category options.
+* **Multi-Currency Support:** Track your base currency (e.g., USD) alongside secondary currencies (e.g., CRC, EUR).
+* **Automatic Exchange Rates:** Automatically fetches daily exchange rates from `open.er-api.com` with graceful fallbacks.
+* **Flexible Budget Frequencies:** Switch seamlessly between Monthly, Bi-weekly (Quincenal), or Weekly periods.
+* **Smart Currency Conversion Summary:** Automatically calculates whether you need to exchange money from your base currency to cover expenses in alternative currencies.
+* **Bilingual Interface:** Fully toggleable between Spanish and English (`es` / `en`).
+* **Fully Client-Side:** Lightweight single-file setup (`index.html`), making it lightning-fast and ideal for deployment on GitHub Pages.
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Deployment & Setup
 
-1. **Download/Copy**: Copy the complete HTML code provided.
-2. **Usage in Notion**: 
-   * Add a **Code** block inside your Notion page.
-   * Paste the HTML code into the block and preview it, or host it on a platform like GitHub Pages, Vercel, or Netlify and embed it using an **Embed** block.
-3. **Standalone**: Save the code as an `index.html` file and open it in any modern browser or tablet.
+### 1. Host on GitHub Pages (Recommended: Private Repository)
+To keep your source code completely hidden from the public internet, you can host GitHub Pages directly from a **Private Repository**:
+1. Create a new repository on GitHub and set its visibility to **Private**.
+2. Upload your `index.html` file to the root of the repository.
+3. Go to your repository **Settings** > **Pages**.
+4. Under **Build and deployment**, select **Deploy from a branch** and choose your `main` (or `master`) branch.
+5. Access your secure dashboard via your generated GitHub Pages URL.
 
----
-
-## ⚙️ Configuration
-
-1. Go to the **⚙️ Configuración** tab.
-2. Select your preferred **Budget Frequency** (Mensual, Quincenal, Semanal).
-3. Set your **Base Currency** (e.g., `USD`) and **Additional Currencies** (e.g., `CRC, EUR`).
-4. Adjust exchange rates or click **🔄 Forzar Actualización de API** to fetch daily global rates automatically.
-5. Click **Guardar Configuración**.
+### 2. First-Time Run
+1. Open your GitHub Pages URL in your browser.
+2. You will be greeted by the **Create Master Passphrase** lock screen.
+3. Enter a strong, memorable passphrase. *(Note: Because there is no backend server, there is no "forgot password" feature. If you lose your passphrase, you will need to clear local storage to reset).*
+4. Begin adding your income, fixed/variable expenses, and savings!
 
 ---
 
-## 🛠️ Built With
+## ⚠️ Important Cryptographic Disclaimer
 
-* **HTML5 / CSS3**: Clean, modern Notion-inspired aesthetic utilizing the Inter font family.
-* **Vanilla JavaScript**: Zero dependencies, fully client-side execution with `localStorage` support.
-* **Exchange Rate API**: Integrates global rates from `open.er-api.com`.
+Because this is a completely static, client-side application running in an open browser environment:
+* **Active Session Memory:** Once unlocked, your decryption key and decrypted data reside in the browser's active RAM for the duration of the session. Always lock or close your browser tab when stepping away from your device.
+* **Backups:** If you clear your browser cache or `localStorage`, your encrypted data will be wiped. Ensure you note down your transactions if performing major browser cleanups.
