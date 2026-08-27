@@ -485,12 +485,12 @@
             </div>
 
             <div class="form-group" style="margin-bottom: 12px;">
-                <label id="txt-lbl-base">Moneda Base (Ej. USD)</label>
+                <label id="txt-lbl-base">Moneda Base (Ej. USD, CRC)</label>
                 <input type="text" id="cfg-base" value="USD" style="text-transform: uppercase;">
             </div>
 
             <div class="form-group" style="margin-bottom: 12px;">
-                <label id="txt-lbl-alt">Monedas Adicionales (Separadas por comas, Ej. CRC, EUR)</label>
+                <label id="txt-lbl-alt">Monedas Adicionales (Separadas por comas, Ej. USD, EUR)</label>
                 <input type="text" id="cfg-alt" value="CRC" style="text-transform: uppercase;">
             </div>
 
@@ -524,8 +524,8 @@
                 cfgTitle: "Configuración Avanzada",
                 cfgDesc: "Defina la frecuencia de presupuesto, la moneda base y las monedas adicionales.",
                 lblFreq: "Frecuencia de Presupuesto",
-                lblBase: "Moneda Base (Ej. USD)",
-                lblAlt: "Monedas Adicionales (Separadas por comas, Ej. CRC, EUR)",
+                lblBase: "Moneda Base (Ej. USD, CRC)",
+                lblAlt: "Monedas Adicionales (Separadas por comas, Ej. USD, EUR)",
                 btnApi: "Actualizar Tasas de Cambio",
                 btnSave: "Guardar Configuración",
                 msgSaved: "¡Guardado exitosamente!",
@@ -591,8 +591,8 @@
                 cfgTitle: "Advanced Settings",
                 cfgDesc: "Define your budget frequency, base currency, and additional currencies.",
                 lblFreq: "Budget Frequency",
-                lblBase: "Base Currency (e.g. USD)",
-                lblAlt: "Additional Currencies (Comma separated, e.g. CRC, EUR)",
+                lblBase: "Base Currency (e.g. USD, CRC)",
+                lblAlt: "Additional Currencies (Comma separated, e.g. USD, EUR)",
                 btnApi: "Update Exchange Rates",
                 btnSave: "Save Settings",
                 msgSaved: "Successfully saved!",
@@ -778,7 +778,7 @@
                             frequency: 'quincenal',
                             baseCurrency: 'USD',
                             altCurrencies: ['CRC'],
-                            rates: { 'CRC': 505.00 },
+                            rates: { 'USD': 1.00, 'CRC': 505.00 },
                             lastFetchDate: null
                         },
                         periods: { 'p1': [], 'p2': [], 'p3': [], 'p4': [] },
@@ -792,6 +792,7 @@
                     appData = await decryptData(encryptedData, passphrase);
                     masterKey = passphrase;
                     if(!appData.history) appData.history = {}; 
+                    if(!appData.config.rates) appData.config.rates = {};
                     document.getElementById('lock-screen').style.display = 'none';
                     initApp();
                 }
@@ -802,9 +803,7 @@
 
         async function saveData() {
             if (!masterKey) return;
-            
-            checkAutoArchive(); // Auto-save snapshot if it's the last day of month
-
+            checkAutoArchive();
             const encrypted = await encryptData(appData, masterKey);
             localStorage.setItem(STORAGE_KEY, encrypted);
             renderTables();
@@ -819,8 +818,6 @@
         function checkAutoArchive() {
             const now = new Date();
             const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-            
-            // If today is the last day of the month, update the snapshot silently.
             if (now.getDate() === lastDay) {
                 const monthName = t('months')[now.getMonth()] + " " + now.getFullYear();
                 if(!appData.history) appData.history = {};
@@ -877,8 +874,6 @@
             calculateDashboard();
             checkDailyAutoUpdate();
             updateHistoryTabUI();
-            
-            // Execute auto-archive on initialization if applicable
             checkAutoArchive();
         }
 
@@ -1089,10 +1084,10 @@
                         alt = alt.trim().toUpperCase();
                         if (data.rates[alt]) {
                             let rate = data.rates[alt];
-                            if(alt === 'CRC') rate += 6;
-                            appData.config.rates[alt] = parseFloat(rate.toFixed(2));
+                            appData.config.rates[alt] = parseFloat(rate.toFixed(4));
                         }
                     });
+                    appData.config.rates[base] = 1.00;
                     
                     appData.config.lastFetchDate = dateStr || new Date().toDateString();
                     saveDataWithoutFullReset();
@@ -1117,17 +1112,18 @@
 
         function renderRateInputs() {
             const container = document.getElementById('rates-container');
-            container.innerHTML = `<label style="display: block; font-size: 12px; color: var(--text-light); margin-bottom: 6px;">${appData.config.language === 'es' ? 'Tasas de Cambio frente a' : 'Exchange Rates against'} ${appData.config.baseCurrency}:</label>`;
+            const base = appData.config.baseCurrency;
+            container.innerHTML = `<label style="display: block; font-size: 12px; color: var(--text-light); margin-bottom: 6px;">${appData.config.language === 'es' ? 'Tasas de Cambio (1 ' + base + ' = X Moneda):' : 'Exchange Rates (1 ' + base + ' = X Currency):'}</label>`;
             
             appData.config.altCurrencies.forEach(alt => {
                 alt = alt.trim().toUpperCase();
-                if(!alt) return;
+                if(!alt || alt === base) return;
                 if(!appData.config.rates[alt]) appData.config.rates[alt] = 1.00;
                 
                 container.innerHTML += `
                     <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
-                        <span style="font-weight: 500; min-width: 50px;">1 ${appData.config.baseCurrency} =</span>
-                        <input type="number" step="0.01" id="rate-${alt}" value="${appData.config.rates[alt]}" style="flex: 1;">
+                        <span style="font-weight: 500; min-width: 50px;">1 ${base} =</span>
+                        <input type="number" step="0.0001" id="rate-${alt}" value="${appData.config.rates[alt]}" style="flex: 1;">
                         <span style="font-weight: 500; min-width: 50px;">${alt}</span>
                     </div>
                 `;
@@ -1136,11 +1132,12 @@
 
         function updateCurrencyDropdowns() {
             const currencies = [appData.config.baseCurrency, ...appData.config.altCurrencies.map(c => c.trim().toUpperCase())];
+            const uniqueCurrencies = [...new Set(currencies)];
             getActivePeriods().forEach(p => {
                 const select = document.getElementById(`curr-${p.id}`);
                 if (select) {
                     select.innerHTML = '';
-                    currencies.forEach(curr => {
+                    uniqueCurrencies.forEach(curr => {
                         select.innerHTML += `<option value="${curr}">${curr}</option>`;
                     });
                 }
@@ -1216,6 +1213,7 @@
             const altInput = document.getElementById('cfg-alt').value;
             appData.config.altCurrencies = altInput.split(',').map(c => c.trim().toUpperCase()).filter(c => c);
 
+            appData.config.rates[appData.config.baseCurrency] = 1.00;
             appData.config.altCurrencies.forEach(alt => {
                 const input = document.getElementById(`rate-${alt}`);
                 if(input) {
@@ -1237,6 +1235,37 @@
                 msg.style.display = 'block';
                 setTimeout(() => msg.style.display = 'none', 2000);
             }
+        }
+
+        // --- Multi-Currency Conversion Helper ---
+        // Converts any amount from currency 'curr' to 'base'
+        function convertToBaseCurrency(amount, curr, base, rates) {
+            curr = curr.toUpperCase().trim();
+            base = base.toUpperCase().trim();
+            if (curr === base) return amount;
+
+            let rateToAlt = rates[curr]; // 1 Base = X Alt (e.g. 1 USD = 505 CRC)
+            if (rateToAlt && rateToAlt > 0) {
+                return amount / rateToAlt;
+            }
+
+            // Fallback reverse lookup if rate was stored oppositely
+            let reverseRate = rates[base];
+            if (curr === base) return amount;
+            
+            return amount;
+        }
+
+        function convertFromBaseCurrency(baseAmount, targetCurr, base, rates) {
+            targetCurr = targetCurr.toUpperCase().trim();
+            base = base.toUpperCase().trim();
+            if (targetCurr === base) return baseAmount;
+
+            let rateToTarget = rates[targetCurr]; // 1 Base = X Target
+            if (rateToTarget && rateToTarget > 0) {
+                return baseAmount * rateToTarget;
+            }
+            return baseAmount;
         }
 
         function renderTables() {
@@ -1290,10 +1319,7 @@
                     tdOrig.textContent = formatMoney(tx.amount, tx.curr);
                     tr.appendChild(tdOrig);
 
-                    let baseEq = tx.amount;
-                    if(tx.curr !== base && rates[tx.curr]) {
-                        baseEq = tx.amount / rates[tx.curr];
-                    }
+                    let baseEq = convertToBaseCurrency(tx.amount, tx.curr, base, rates);
                     const tdBase = document.createElement('td');
                     tdBase.style.color = 'var(--text-light)';
                     tdBase.textContent = formatMoney(baseEq, base);
@@ -1324,16 +1350,10 @@
             const rates = appData.config.rates;
             const altCurrencies = appData.config.altCurrencies;
             const allCurrencies = [base, ...altCurrencies];
+            const uniqueCurrencies = [...new Set(allCurrencies)];
 
             getActivePeriods().forEach(p => {
                 let txs = appData.periods[p.id] || [];
-                
-                let convertToBase = (amount, curr) => {
-                    curr = curr.toUpperCase().trim();
-                    if (curr === base) return amount;
-                    let rate = rates[curr] || 1;
-                    return amount / rate;
-                };
 
                 let totalIncBase = 0;
                 let totalExpBase = 0;
@@ -1341,7 +1361,7 @@
                 let totalSavBase = 0;
 
                 txs.forEach(t => {
-                    let baseVal = convertToBase(t.amount, t.curr);
+                    let baseVal = convertToBaseCurrency(t.amount, t.curr, base, rates);
                     if (t.cat === 'Ingreso') totalIncBase += baseVal;
                     else if (t.cat === 'Gasto Fijo' || t.cat === 'Gasto Variable') totalExpBase += baseVal;
                     else if (t.cat === 'Gasto Personal') totalPerBase += baseVal;
@@ -1351,21 +1371,18 @@
                 let remBase = totalIncBase - totalExpBase - totalPerBase - totalSavBase;
 
                 let getConvertedValues = (baseVal) => {
-                    return allCurrencies.map(curr => {
-                        curr = curr.toUpperCase().trim();
-                        if (curr === base) return baseVal;
-                        let rate = rates[curr] || 1;
-                        return baseVal * rate;
+                    return uniqueCurrencies.map(curr => {
+                        return convertFromBaseCurrency(baseVal, curr, base, rates);
                     });
                 };
 
                 let getDirectSumsByCurrency = (categories) => {
                     let sums = {};
-                    allCurrencies.forEach(curr => {
+                    uniqueCurrencies.forEach(curr => {
                         sums[curr] = txs.filter(t => categories.includes(t.cat) && t.curr.toUpperCase().trim() === curr)
                                         .reduce((acc, t) => acc + t.amount, 0);
                     });
-                    return allCurrencies.map(curr => sums[curr]);
+                    return uniqueCurrencies.map(curr => sums[curr]);
                 };
 
                 let incVals = getConvertedValues(totalIncBase);
@@ -1374,13 +1391,13 @@
                 let savVals = getDirectSumsByCurrency(['Ahorro']);
                 let remVals = getConvertedValues(remBase);
 
-                renderMultiCurrencyCard(`card-${p.id}-inc`, allCurrencies, incVals);
-                renderMultiCurrencyCard(`card-${p.id}-exp`, allCurrencies, expVals, 'var(--danger)');
-                renderMultiCurrencyCard(`card-${p.id}-per`, allCurrencies, perVals, 'var(--personal)');
-                renderMultiCurrencyCard(`card-${p.id}-sav`, allCurrencies, savVals, 'var(--success)');
+                renderMultiCurrencyCard(`card-${p.id}-inc`, uniqueCurrencies, incVals);
+                renderMultiCurrencyCard(`card-${p.id}-exp`, uniqueCurrencies, expVals, 'var(--danger)');
+                renderMultiCurrencyCard(`card-${p.id}-per`, uniqueCurrencies, perVals, 'var(--personal)');
+                renderMultiCurrencyCard(`card-${p.id}-sav`, uniqueCurrencies, savVals, 'var(--success)');
                 
                 let remColor = remBase < 0 ? 'var(--danger)' : 'var(--success)';
-                renderMultiCurrencyCard(`card-${p.id}-rem`, allCurrencies, remVals, remColor);
+                renderMultiCurrencyCard(`card-${p.id}-rem`, uniqueCurrencies, remVals, remColor);
             });
 
             const exchangeContainer = document.getElementById('exchange-container');
@@ -1400,15 +1417,14 @@
                 let txs = appData.periods[p.id] || [];
                 txs.forEach(tx => {
                     if (['Gasto Fijo', 'Gasto Variable', 'Gasto Personal', 'Ahorro'].includes(tx.cat)) {
-                        let c = tx.curr;
-                        if (altCurrencies.includes(c)) {
-                            let totalIncCurr = txs.filter(t => t.cat === 'Ingreso' && t.curr === c).reduce((acc, t) => acc + t.amount, 0);
-                            let totalExpCurr = txs.filter(t => ['Gasto Fijo', 'Gasto Variable', 'Gasto Personal', 'Ahorro'].includes(t.cat) && t.curr === c).reduce((acc, t) => acc + t.amount, 0);
+                        let c = tx.curr.toUpperCase().trim();
+                        if (c !== base && altCurrencies.map(x=>x.toUpperCase().trim()).includes(c)) {
+                            let totalIncCurr = txs.filter(t => t.cat === 'Ingreso' && t.curr.toUpperCase().trim() === c).reduce((acc, t) => acc + t.amount, 0);
+                            let totalExpCurr = txs.filter(t => ['Gasto Fijo', 'Gasto Variable', 'Gasto Personal', 'Ahorro'].includes(t.cat) && t.curr.toUpperCase().trim() === c).reduce((acc, t) => acc + t.amount, 0);
 
                             if (totalExpCurr > totalIncCurr) {
                                 needsAction = true;
-                                let rate = rates[c] || 1;
-                                let baseNeededForThisTx = tx.amount / rate;
+                                let baseNeededForThisTx = convertToBaseCurrency(tx.amount, c, base, rates);
                                 totalBaseEquivalentToChange += baseNeededForThisTx;
 
                                 if (!totalExpensesInOtherCurrency[c]) totalExpensesInOtherCurrency[c] = 0;
@@ -1499,7 +1515,6 @@
             if(!appData.history) appData.history = {};
             appData.history[monthName] = JSON.parse(JSON.stringify(appData.periods));
 
-            // Not clearing appData.periods as requested
             saveData();
             openTab('history-tab-content');
             alert(appData.config.language === 'es' ? 'Reporte guardado exitosamente.' : 'Report saved successfully.');
@@ -1552,7 +1567,6 @@
                 document.getElementById('history-reports-container').innerHTML = '';
             } else {
                 select.disabled = false;
-                // Avoid using non-standard object sorting, reverse iterate naturally
                 const keys = Object.keys(appData.history).reverse(); 
                 keys.forEach(k => {
                     select.innerHTML += `<option value="${k}">${k}</option>`;
@@ -1580,17 +1594,10 @@
             let totalPerBase = 0;
             let totalSavBase = 0;
 
-            let convertToBase = (amount, curr) => {
-                curr = curr.toUpperCase().trim();
-                if (curr === base) return amount;
-                let rate = rates[curr] || 1;
-                return amount / rate;
-            };
-
             for(let pid in monthData) {
                 let txs = monthData[pid];
                 txs.forEach(t => {
-                    let baseVal = convertToBase(t.amount, t.curr);
+                    let baseVal = convertToBaseCurrency(t.amount, t.curr, base, rates);
                     if (t.cat === 'Ingreso') totalIncBase += baseVal;
                     else if (t.cat === 'Gasto Fijo' || t.cat === 'Gasto Variable') totalExpBase += baseVal;
                     else if (t.cat === 'Gasto Personal') totalPerBase += baseVal;
