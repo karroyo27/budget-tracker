@@ -1377,7 +1377,7 @@
             }
         }
 
-        // --- MOTOR DE CONVERSIÓN UNIFICADO Y BLINDADO ---
+        // --- MOTOR DE CONVERSIÓN CORREGIDO Y EXACTO ---
         function convertCurrency(amount, fromCurr, toCurr, base, rates) {
             fromCurr = fromCurr.toUpperCase().trim();
             toCurr = toCurr.toUpperCase().trim();
@@ -1387,24 +1387,24 @@
 
             let crcRate = rates['CRC'] || 505.00;
 
-            // 1. Convertir cualquier moneda a USD como pivote universal
+            // 1. Convertir la cantidad origen a USD como pivote unificado
             let amountInUSD = amount;
             if (fromCurr === 'CRC') {
-                amountInUSD = amount / crcRate;
+                amountInUSD = amount / crcRate; // ₡120,000 / 505 = ~$237.62
             } else if (fromCurr !== 'USD') {
                 let r = rates[fromCurr] || 1.00;
                 amountInUSD = amount / r;
             }
 
-            // 2. Si el destino es USD, retornamos directamente
+            // 2. Si el destino es USD, retornamos el pivote
             if (toCurr === 'USD') return amountInUSD;
 
-            // 3. Si el destino es CRC, convertimos el pivote USD a CRC
+            // 3. Si el destino es CRC, convertimos el pivote USD a CRC multiplicando
             if (toCurr === 'CRC') {
                 return amountInUSD * crcRate;
             }
 
-            // 4. Otras monedas adicionales
+            // 4. Otras divisas
             let targetRate = rates[toCurr] || 1.00;
             return amountInUSD * targetRate;
         }
@@ -1575,7 +1575,6 @@
                 txs.forEach(tx => {
                     if (['Gasto Fijo', 'Gasto Variable', 'Gasto Personal', 'Ahorro'].includes(tx.cat)) {
                         let c = tx.curr.toUpperCase().trim();
-                        // Forzamos la evaluación de transacciones en moneda distinta a la base (ej: CRC vs USD)
                         if (c !== base) {
                             needsAction = true;
                             let baseNeededForThisTx = convertCurrency(tx.amount, c, base, base, rates);
@@ -1586,7 +1585,8 @@
 
                             const li = document.createElement('li');
                             if (currentLockLang === 'es') {
-                                li.append(document.createTextNode(`[${p.name}] Gasto en `));
+                                // Sin prefijo de quincena en los bullets
+                                li.append(document.createTextNode(`Gasto en `));
                                 const b1 = document.createElement('strong'); b1.textContent = formatMoney(tx.amount, c); li.append(b1);
                                 li.append(document.createTextNode(' para '));
                                 const b2 = document.createElement('strong'); b2.textContent = `"${tx.desc}"`; li.append(b2);
@@ -1594,7 +1594,7 @@
                                 const b3 = document.createElement('strong'); b3.textContent = formatMoney(baseNeededForThisTx, base); li.append(b3);
                                 li.append(document.createTextNode('.'));
                             } else {
-                                li.append(document.createTextNode(`[${p.name}] Expense in `));
+                                li.append(document.createTextNode(`Expense in `));
                                 const b1 = document.createElement('strong'); b1.textContent = formatMoney(tx.amount, c); li.append(b1);
                                 li.append(document.createTextNode(' for '));
                                 const b2 = document.createElement('strong'); b2.textContent = `"${tx.desc}"`; li.append(b2);
