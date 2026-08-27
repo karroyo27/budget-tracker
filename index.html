@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notion Budget Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #37352f;
+            --text-light: #787774;
+            --border-color: #e9e9e7;
+            --hover-bg: #f1f1ef;
+            --primary: #2eaadc;
+            --primary-hover: #069cba;
+            --danger: #eb5757;
+            --success: #0f7b6c;
+            --warning: #d48806;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.5;
+            padding: 20px;
+            font-size: 14px;
+        }
+
+        .header {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .header h1 { font-size: 24px; font-weight: 600; }
+        .header p { color: var(--text-light); font-size: 14px; text-transform: capitalize; }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-lang {
+            background: var(--hover-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 4px 10px;
+            font-size: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .btn-lang:hover { background-color: var(--border-color); }
+
+        .api-badge {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            background: var(--hover-bg);
+            color: var(--text-light);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .api-badge.success { background: #e6f4f1; color: var(--success); }
+        .api-badge.loading { background: #fffbe6; color: var(--warning); }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .tabs::-webkit-scrollbar { display: none; }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-light);
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            border-radius: 4px 4px 0 0;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .tab-btn:hover { background-color: var(--hover-bg); color: var(--text-color); }
+        .tab-btn.active { color: var(--text-color); border-bottom: 2px solid var(--text-color); font-weight: 500; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Grid & Cards */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            background: var(--bg-color);
+        }
+
+        .card h3 {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-light);
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .card-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            border-bottom: 1px dashed var(--border-color);
+            padding-bottom: 4px;
+        }
+        .card-row:last-child { margin-bottom: 0; border-bottom: none; padding-bottom: 0; }
+
+        .card-currency-label {
+            font-size: 12px;
+            color: var(--text-light);
+            font-weight: 600;
+        }
+
+        .card-amount {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        /* Forms */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            align-items: end;
+            margin-bottom: 20px;
+            background: var(--hover-bg);
+            padding: 16px;
+            border-radius: 6px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-light);
+            margin-bottom: 4px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            background: var(--bg-color);
+        }
+        input:focus, select:focus { border-color: var(--primary); }
+
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .btn-primary { background-color: var(--primary); color: white; width: 100%; }
+        .btn-primary:hover { background-color: var(--primary-hover); }
+        
+        .btn-secondary {
+            background-color: var(--hover-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            width: 100%;
+            margin-bottom: 12px;
+        }
+        .btn-secondary:hover { background-color: var(--hover-bg); }
+
+        .btn-copy {
+            background-color: #2eaadc;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            vertical-align: middle;
+        }
+        .btn-copy:hover { background-color: #069cba; }
+
+        .btn-edit { background-color: transparent; color: var(--warning); padding: 4px 8px; margin-right: 4px; }
+        .btn-edit:hover { background-color: #fffbe6; }
+
+        .btn-danger { background-color: transparent; color: var(--danger); padding: 4px 8px; }
+        .btn-danger:hover { background-color: #fee2e2; }
+
+        /* Tables */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            min-width: 550px;
+        }
+
+        th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        tr:last-child td { border-bottom: none; }
+        th { font-weight: 500; color: var(--text-light); font-size: 12px; text-transform: uppercase; background-color: #fafafa; }
+
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 12px; background: var(--hover-bg); white-space: nowrap; }
+        .badge.ingreso { color: var(--success); background: #e6f4f1; }
+        .badge.gasto { color: var(--danger); background: #fdeaea; }
+
+        /* Exchange Panel */
+        .exchange-panel {
+            background: #fffbe6;
+            border: 1px solid #ffe58f;
+            padding: 16px;
+            border-radius: 6px;
+            margin-bottom: 24px;
+        }
+        .exchange-panel h3 { margin-bottom: 8px; color: #d48806; font-size: 15px; }
+        
+        .exchange-list {
+            list-style-type: disc;
+            margin-left: 20px;
+            margin-bottom: 12px;
+        }
+        .exchange-list li {
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+        .exchange-total {
+            border-top: 1px dashed #ffe58f;
+            padding-top: 8px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 12px; }
+            .form-grid { grid-template-columns: 1fr; padding: 12px; }
+            .header h1 { font-size: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            <h1 id="txt-app-title">Dashboard Financiero</h1>
+            <p id="current-month-year">Mes Actual</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn-lang" onclick="toggleLanguage()" id="btn-lang-toggle">English 🌐</button>
+            <div id="api-badge" class="api-badge loading">
+                🔄 Conectando API...
+            </div>
+        </div>
+    </div>
+
+    <!-- TABS DINÁMICOS -->
+    <div id="tabs-container" class="tabs"></div>
+
+    <!-- CONTENEDOR DE PESTAÑAS -->
+    <div id="tab-contents-container"></div>
+
+    <!-- CONFIG TAB -->
+    <div id="config-tab-content" class="tab-content">
+        <div class="card" style="max-width: 450px; margin: 0 auto;">
+            <h2 id="txt-cfg-title" style="font-size: 16px; margin-bottom: 8px;">Configuración Avanzada</h2>
+            <p id="txt-cfg-desc" style="font-size: 12px; color: var(--text-light); margin-bottom: 16px;">
+                Define tu frecuencia de presupuesto, moneda base y monedas adicionales.
+            </p>
+            
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label id="txt-lbl-freq">Frecuencia de Presupuesto</label>
+                <select id="cfg-frequency" onchange="updateFrequency()">
+                    <option value="mensual">Mensual (1 Periodo)</option>
+                    <option value="quincenal">Quincenal (2 Periodos)</option>
+                    <option value="semanal">Semanal (4 Periodos)</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label id="txt-lbl-base">Moneda Base (Ej. USD)</label>
+                <input type="text" id="cfg-base" value="USD" style="text-transform: uppercase;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label id="txt-lbl-alt">Monedas Adicionales (Separadas por comas, Ej. CRC, EUR)</label>
+                <input type="text" id="cfg-alt" value="CRC" style="text-transform: uppercase;">
+            </div>
+
+            <button class="btn-secondary" onclick="fetchExchangeRates(true)" id="txt-btn-api">🔄 Forzar Actualización de API</button>
+
+            <div id="rates-container" style="margin-bottom: 16px;"></div>
+            
+            <button class="btn-primary" onclick="saveConfig(true)" id="txt-btn-save">Guardar Configuración</button>
+            <p id="config-msg" style="color: var(--success); font-size: 12px; margin-top: 8px; display: none; text-align: center;"></p>
+        </div>
+    </div>
+
+    <script>
+        let appData = JSON.parse(localStorage.getItem('notionBudgetLangV1')) || {
+            config: {
+                language: 'es', // 'es' o 'en'
+                frequency: 'quincenal',
+                baseCurrency: 'USD',
+                altCurrencies: ['CRC'],
+                rates: { 'CRC': 505.00 },
+                lastFetchDate: null
+            },
+            periods: {
+                'p1': [], 'p2': [], 'p3': [], 'p4': []
+            }
+        };
+
+        const translations = {
+            es: {
+                appTitle: "Dashboard Financiero",
+                cfgTitle: "Configuración Avanzada",
+                cfgDesc: "Define tu frecuencia de presupuesto, moneda base y monedas adicionales.",
+                lblFreq: "Frecuencia de Presupuesto",
+                lblBase: "Moneda Base (Ej. USD)",
+                lblAlt: "Monedas Adicionales (Separadas por comas, Ej. CRC, EUR)",
+                btnApi: "🔄 Forzar Actualización de API",
+                btnSave: "Guardar Configuración",
+                msgSaved: "¡Guardado exitosamente!",
+                tabDashboard: "Dashboard",
+                tabConfig: "⚙️ Configuración",
+                freqMensual: "Mensual",
+                freqQuincenal: "Quincenal",
+                freqSemanal: "Semanal",
+                pMensual: "Mes Completo",
+                pQ1: "Quincena I",
+                pQ2: "Quincena II",
+                pW1: "Semana 1",
+                pW2: "Semana 2",
+                pW3: "Semana 3",
+                pW4: "Semana 4",
+                cardInc: "Ingresos",
+                cardExp: "Gastos Totales",
+                cardSav: "Ahorros",
+                cardRem: "Dinero Restante",
+                exTitle: "💡 Resumen de Conversiones y Gastos por Moneda",
+                exTotalLbl: "Total Gastos en otra moneda:",
+                exChangeLbl: "Total a Cambiar",
+                btnCopy: "Copiar",
+                formDesc: "Descripción",
+                formAmount: "Monto",
+                formCurr: "Moneda",
+                formCatDesc: "Concepto / Categoría",
+                formType: "Tipo",
+                btnAdd: "Añadir",
+                btnUpdate: "Actualizar",
+                tblDesc: "Descripción",
+                tblConcept: "Concepto / Categoría",
+                tblCurr: "Moneda",
+                tblOrig: "Monto Original",
+                tblBase: "Equivalente Base",
+                tblAction: "Acción",
+                btnEdit: "✏️ Editar",
+                btnDelete: "Borrar",
+                typeVar: "Gasto Variable",
+                typeFix: "Gasto Fijo",
+                typeInc: "Ingreso",
+                typeSav: "Ahorro",
+                months: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+            },
+            en: {
+                appTitle: "Financial Dashboard",
+                cfgTitle: "Advanced Settings",
+                cfgDesc: "Define your budget frequency, base currency, and additional currencies.",
+                lblFreq: "Budget Frequency",
+                lblBase: "Base Currency (e.g. USD)",
+                lblAlt: "Additional Currencies (Comma separated, e.g. CRC, EUR)",
+                btnApi: "🔄 Force API Update",
+                btnSave: "Save Settings",
+                msgSaved: "Successfully saved!",
+                tabDashboard: "Dashboard",
+                tabConfig: "⚙️ Settings",
+                freqMensual: "Monthly",
+                freqQuincenal: "Bi-weekly",
+                freqSemanal: "Weekly",
+                pMensual: "Full Month",
+                pQ1: "Bi-weekly I",
+                pQ2: "Bi-weekly II",
+                pW1: "Week 1",
+                pW2: "Week 2",
+                pW3: "Week 3",
+                pW4: "Week 4",
+                cardInc: "Income",
+                cardExp: "Total Expenses",
+                cardSav: "Savings",
+                cardRem: "Remaining Money",
+                exTitle: "💡 Currency Conversion & Expenses Summary",
+                exTotalLbl: "Total Expenses in other currency:",
+                exChangeLbl: "Total to Change",
+                btnCopy: "Copy",
+                formDesc: "Description",
+                formAmount: "Amount",
+                formCurr: "Currency",
+                formCatDesc: "Concept / Category",
+                formType: "Type",
+                btnAdd: "Add",
+                btnUpdate: "Update",
+                tblDesc: "Description",
+                tblConcept: "Concept / Category",
+                tblCurr: "Currency",
+                tblOrig: "Original Amount",
+                tblBase: "Base Equivalent",
+                tblAction: "Action",
+                btnEdit: "✏️ Edit",
+                btnDelete: "Delete",
+                typeVar: "Variable Expense",
+                typeFix: "Fixed Expense",
+                typeInc: "Income",
+                typeSav: "Savings",
+                months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+            }
+        };
+
+        const expandedCategories = [
+            "Salario / Nómina", "Freelance / Ingresos Extras", "Inversiones / Dividendos",
+            "Alquiler / Hipoteca", "Servicios Básicos (Luz, Agua, Internet)", "Telefonía / Celular",
+            "Seguros (Auto, Médico, Vida)", "Préstamos / Deudas / Tarjetas", "Suscripciones (Streaming, Software, Apps)",
+            "Supermercado y Alimentación", "Gasolina / Transporte / Peajes", "Uber / Taxis / Movilidad",
+            "Salidas, Restaurantes y Café", "Salud, Farmacia y Cuidado Personal", "Ropa, Calzado y Accesorios",
+            "Mascotas (Veterinario, Alimento)", "Educación / Cursos / Libros", "Entretenimiento / Hobbies",
+            "Imprevistos / Varios", "Fondo de Emergencia / Ahorro", "Inversiones a Plazo"
+        ];
+
+        function t(key) {
+            let lang = appData.config.language || 'es';
+            return translations[lang][key] || key;
+        }
+
+        function toggleLanguage() {
+            appData.config.language = appData.config.language === 'es' ? 'en' : 'es';
+            saveDataWithoutFullReset();
+            applyStaticTranslations();
+            buildDynamicUI();
+            updateCurrencyDropdowns();
+            renderTables();
+            calculateDashboard();
+        }
+
+        function applyStaticTranslations() {
+            document.getElementById('txt-app-title').innerText = t('appTitle');
+            document.getElementById('txt-cfg-title').innerText = t('cfgTitle');
+            document.getElementById('txt-cfg-desc').innerText = t('cfgDesc');
+            document.getElementById('txt-lbl-freq').innerText = t('lblFreq');
+            document.getElementById('txt-lbl-base').innerText = t('lblBase');
+            document.getElementById('txt-lbl-alt').innerText = t('lblAlt');
+            document.getElementById('txt-btn-api').innerText = t('btnApi');
+            document.getElementById('txt-btn-save').innerText = t('btnSave');
+            document.getElementById('btn-lang-toggle').innerText = appData.config.language === 'es' ? 'English 🌐' : 'Español 🌐';
+
+            const now = new Date();
+            let monthName = t('months')[now.getMonth()];
+            document.getElementById('current-month-year').innerText = `${monthName} ${now.getFullYear()}`;
+        }
+
+        function init() {
+            if (!appData.config.language) appData.config.language = 'es';
+            document.getElementById('cfg-frequency').value = appData.config.frequency;
+            document.getElementById('cfg-base').value = appData.config.baseCurrency;
+            document.getElementById('cfg-alt').value = appData.config.altCurrencies.join(', ');
+
+            applyStaticTranslations();
+            buildDynamicUI();
+            renderRateInputs();
+            updateCurrencyDropdowns();
+            renderTables();
+            calculateDashboard();
+            checkDailyAutoUpdate();
+        }
+
+        function getActivePeriods() {
+            const freq = appData.config.frequency;
+            if (freq === 'mensual') return [{ id: 'p1', name: t('pMensual') }];
+            if (freq === 'quincenal') return [{ id: 'p1', name: t('pQ1') }, { id: 'p2', name: t('pQ2') }];
+            if (freq === 'semanal') return [{ id: 'p1', name: t('pW1') }, { id: 'p2', name: t('pW2') }, { id: 'p3', name: t('pW3') }, { id: 'p4', name: t('pW4') }];
+            return [{ id: 'p1', name: t('pQ1') }, { id: 'p2', name: t('pQ2') }];
+        }
+
+        function buildDynamicUI() {
+            const tabsContainer = document.getElementById('tabs-container');
+            const contentsContainer = document.getElementById('tab-contents-container');
+            
+            tabsContainer.innerHTML = `<button class="tab-btn active" onclick="openTab('dashboard')">${t('tabDashboard')}</button>`;
+            contentsContainer.innerHTML = generateDashboardHTML();
+
+            const periods = getActivePeriods();
+            periods.forEach((p) => {
+                tabsContainer.innerHTML += `<button class="tab-btn" onclick="openTab('${p.id}')">${p.name}</button>`;
+                contentsContainer.innerHTML += generatePeriodHTML(p.id, p.name);
+            });
+
+            tabsContainer.innerHTML += `<button class="tab-btn" onclick="openTab('config-tab-content')">${t('tabConfig')}</button>`;
+        }
+
+        function generateDashboardHTML() {
+            let periods = getActivePeriods();
+            let cardsHTML = '';
+            periods.forEach(p => {
+                cardsHTML += `
+                    <h2 style="font-size: 16px; margin-bottom: 12px; margin-top: 20px;">Resumen ${p.name}</h2>
+                    <div class="grid">
+                        <div class="card">
+                            <h3>${t('cardInc')}</h3>
+                            <div id="card-${p.id}-inc"></div>
+                        </div>
+                        <div class="card">
+                            <h3>${t('cardExp')}</h3>
+                            <div id="card-${p.id}-exp"></div>
+                        </div>
+                        <div class="card">
+                            <h3>${t('cardSav')}</h3>
+                            <div id="card-${p.id}-sav"></div>
+                        </div>
+                        <div class="card">
+                            <h3>${t('cardRem')}</h3>
+                            <div id="card-${p.id}-rem"></div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            return `
+                <div id="dashboard" class="tab-content active">
+                    <div id="exchange-container" class="exchange-panel" style="display: none;">
+                        <h3>${t('exTitle')}</h3>
+                        <ul id="exchange-bullets" class="exchange-list"></ul>
+                        <div class="exchange-total" id="exchange-total-container"></div>
+                    </div>
+                    ${cardsHTML}
+                </div>
+            `;
+        }
+
+        function generatePeriodHTML(pid, name) {
+            let catOptions = expandedCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+            return `
+                <div id="${pid}" class="tab-content">
+                    <form id="form-${pid}" class="form-grid" onsubmit="saveTransaction(event, '${pid}')">
+                        <input type="hidden" id="edit-id-${pid}">
+                        <div class="form-group">
+                            <label>${t('formDesc')}</label>
+                            <input type="text" id="desc-${pid}" required placeholder="Ej. Alquiler de casa">
+                        </div>
+                        <div class="form-group">
+                            <label>${t('formAmount')}</label>
+                            <input type="number" step="0.01" id="amount-${pid}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>${t('formCurr')}</label>
+                            <select id="curr-${pid}"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>${t('formCatDesc')}</label>
+                            <select id="cat-desc-${pid}">
+                                ${catOptions}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>${t('formType')}</label>
+                            <select id="cat-${pid}">
+                                <option value="Gasto Variable">${t('typeVar')}</option>
+                                <option value="Gasto Fijo">${t('typeFix')}</option>
+                                <option value="Ingreso">${t('typeInc')}</option>
+                                <option value="Ahorro">${t('typeSav')}</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <button type="submit" id="btn-submit-${pid}" class="btn-primary">${t('btnAdd')}</button>
+                        </div>
+                    </form>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>${t('tblDesc')}</th>
+                                    <th>${t('tblConcept')}</th>
+                                    <th>${t('tblCurr')}</th>
+                                    <th>${t('tblOrig')}</th>
+                                    <th>${t('tblBase')}</th>
+                                    <th>${t('tblAction')}</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-${pid}"></tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateFrequency() {
+            appData.config.frequency = document.getElementById('cfg-frequency').value;
+            saveDataWithoutFullReset();
+            buildDynamicUI();
+            updateCurrencyDropdowns();
+            renderTables();
+            calculateDashboard();
+        }
+
+        function checkDailyAutoUpdate() {
+            const todayStr = new Date().toDateString();
+            if (appData.config.lastFetchDate !== todayStr) {
+                fetchExchangeRates(false, todayStr);
+            } else {
+                const badge = document.getElementById('api-badge');
+                badge.className = 'api-badge success';
+                badge.innerHTML = `✅ T.C. Sincronizado Hoy`;
+            }
+        }
+
+        async function fetchExchangeRates(isManualClick, dateStr = null) {
+            const badge = document.getElementById('api-badge');
+            badge.className = 'api-badge loading';
+            badge.innerHTML = '🔄 Obteniendo TC...';
+            
+            const base = appData.config.baseCurrency;
+            try {
+                const response = await fetch(`https://open.er-api.com/v6/latest/${base}`);
+                const data = await response.json();
+                
+                if (data && data.rates) {
+                    appData.config.altCurrencies.forEach(alt => {
+                        alt = alt.trim().toUpperCase();
+                        if (data.rates[alt]) {
+                            let rate = data.rates[alt];
+                            if(alt === 'CRC') rate += 6;
+                            appData.config.rates[alt] = parseFloat(rate.toFixed(2));
+                        }
+                    });
+                    
+                    appData.config.lastFetchDate = dateStr || new Date().toDateString();
+                    saveDataWithoutFullReset();
+                    renderRateInputs();
+                    
+                    badge.className = 'api-badge success';
+                    badge.innerHTML = `✅ Actualizado (${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`;
+                    
+                    if(isManualClick) {
+                        alert(appData.config.language === 'es' ? "¡Tipos de cambio actualizados exitosamente!" : "Exchange rates successfully updated!");
+                    }
+                }
+            } catch (error) {
+                console.error("Error al obtener tipo de cambio:", error);
+                badge.className = 'api-badge';
+                badge.innerHTML = '⚠️ Usando T.C. Guardado';
+                if(isManualClick) {
+                    alert(appData.config.language === 'es' ? "No se pudo conectar a la API." : "Could not connect to API.");
+                }
+            }
+        }
+
+        function renderRateInputs() {
+            const container = document.getElementById('rates-container');
+            container.innerHTML = `<label style="display: block; font-size: 12px; color: var(--text-light); margin-bottom: 6px;">${appData.config.language === 'es' ? 'Tasas de Cambio frente a' : 'Exchange Rates against'} ${appData.config.baseCurrency}:</label>`;
+            
+            appData.config.altCurrencies.forEach(alt => {
+                alt = alt.trim().toUpperCase();
+                if(!alt) return;
+                if(!appData.config.rates[alt]) appData.config.rates[alt] = 1.00;
+                
+                container.innerHTML += `
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
+                        <span style="font-weight: 500; min-width: 50px;">1 ${appData.config.baseCurrency} =</span>
+                        <input type="number" step="0.01" id="rate-${alt}" value="${appData.config.rates[alt]}" style="flex: 1;">
+                        <span style="font-weight: 500; min-width: 50px;">${alt}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function updateCurrencyDropdowns() {
+            const currencies = [appData.config.baseCurrency, ...appData.config.altCurrencies.map(c => c.trim().toUpperCase())];
+            getActivePeriods().forEach(p => {
+                const select = document.getElementById(`curr-${p.id}`);
+                if (select) {
+                    select.innerHTML = '';
+                    currencies.forEach(curr => {
+                        select.innerHTML += `<option value="${curr}">${curr}</option>`;
+                    });
+                }
+            });
+        }
+
+        function openTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        function saveTransaction(e, period) {
+            e.preventDefault();
+            const editId = document.getElementById(`edit-id-${period}`).value;
+            
+            const desc = document.getElementById(`desc-${period}`).value;
+            const amount = parseFloat(document.getElementById(`amount-${period}`).value);
+            const curr = document.getElementById(`curr-${period}`).value;
+            const catDesc = document.getElementById(`cat-desc-${period}`).value;
+            const cat = document.getElementById(`cat-${period}`).value;
+            let type = 'gasto';
+            if (cat === 'Ingreso') type = 'ingreso';
+
+            if (!appData.periods[period]) appData.periods[period] = [];
+
+            if (editId) {
+                appData.periods[period] = appData.periods[period].map(tx => {
+                    if (tx.id == editId) {
+                        return { id: Number(editId), desc, amount, curr, catDesc, cat, type };
+                    }
+                    return tx;
+                });
+                document.getElementById(`edit-id-${period}`).value = '';
+                document.getElementById(`btn-submit-${period}`).innerText = t('btnAdd');
+            } else {
+                appData.periods[period].push({ id: Date.now(), desc, amount, curr, catDesc, cat, type });
+            }
+
+            saveData();
+            document.getElementById(`form-${period}`).reset();
+        }
+
+        function editTransaction(period, id) {
+            const tx = appData.periods[period].find(t => t.id === id);
+            if (!tx) return;
+
+            document.getElementById(`edit-id-${period}`).value = tx.id;
+            document.getElementById(`desc-${period}`).value = tx.desc;
+            document.getElementById(`amount-${period}`).value = tx.amount;
+            document.getElementById(`curr-${period}`).value = tx.curr;
+            document.getElementById(`cat-desc-${period}`).value = tx.catDesc || expandedCategories[0];
+            document.getElementById(`cat-${period}`).value = tx.cat;
+            
+            document.getElementById(`btn-submit-${period}`).innerText = t('btnUpdate');
+            document.getElementById(`form-${period}`).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function deleteTransaction(period, id) {
+            appData.periods[period] = appData.periods[period].filter(tx => tx.id !== id);
+            saveData();
+        }
+
+        function saveConfig(showMessage) {
+            appData.config.baseCurrency = document.getElementById('cfg-base').value.trim().toUpperCase();
+            appData.config.frequency = document.getElementById('cfg-frequency').value;
+            const altInput = document.getElementById('cfg-alt').value;
+            appData.config.altCurrencies = altInput.split(',').map(c => c.trim().toUpperCase()).filter(c => c);
+
+            appData.config.altCurrencies.forEach(alt => {
+                const input = document.getElementById(`rate-${alt}`);
+                if(input) {
+                    appData.config.rates[alt] = parseFloat(input.value) || 1.00;
+                }
+            });
+
+            document.getElementById('api-badge').innerHTML = '🔒 Configuración Manual';
+            document.getElementById('api-badge').className = 'api-badge';
+
+            buildDynamicUI();
+            updateCurrencyDropdowns();
+            renderRateInputs();
+            saveData();
+
+            if(showMessage) {
+                const msg = document.getElementById('config-msg');
+                msg.innerText = t('msgSaved');
+                msg.style.display = 'block';
+                setTimeout(() => msg.style.display = 'none', 2000);
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('notionBudgetLangV1', JSON.stringify(appData));
+            renderTables();
+            calculateDashboard();
+        }
+
+        function saveDataWithoutFullReset() {
+            localStorage.setItem('notionBudgetLangV1', JSON.stringify(appData));
+            renderTables();
+            calculateDashboard();
+        }
+
+        function renderTables() {
+            const base = appData.config.baseCurrency;
+            const rates = appData.config.rates;
+
+            getActivePeriods().forEach(p => {
+                const tbody = document.getElementById(`table-${p.id}`);
+                if (!tbody) return;
+                tbody.innerHTML = '';
+                
+                if (!appData.periods[p.id]) appData.periods[p.id] = [];
+
+                appData.periods[p.id].forEach(tx => {
+                    const badgeClass = tx.type === 'ingreso' ? 'ingreso' : 'gasto';
+                    const amountFmt = formatMoney(tx.amount, tx.curr);
+                    
+                    let baseEq = tx.amount;
+                    if(tx.curr !== base && rates[tx.curr]) {
+                        baseEq = tx.amount / rates[tx.curr];
+                    }
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><strong>${tx.desc}</strong><br><small style="color:var(--text-light);">${tx.catDesc || ''}</small></td>
+                            <td><span class="badge ${badgeClass}">${tx.cat}</span></td>
+                            <td><span class="badge">${tx.curr}</span></td>
+                            <td>${amountFmt}</td>
+                            <td style="color: var(--text-light)">${formatMoney(baseEq, base)}</td>
+                            <td>
+                                <button class="btn-edit" onclick="editTransaction('${p.id}', ${tx.id})">${t('btnEdit')}</button>
+                                <button class="btn-danger" onclick="deleteTransaction('${p.id}', ${tx.id})">${t('btnDelete')}</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+        }
+
+        function calculateDashboard() {
+            const base = appData.config.baseCurrency;
+            const rates = appData.config.rates;
+            const altCurrencies = appData.config.altCurrencies;
+            const allCurrencies = [base, ...altCurrencies];
+
+            getActivePeriods().forEach(p => {
+                let txs = appData.periods[p.id] || [];
+                
+                let convertToBase = (amount, curr) => {
+                    curr = curr.toUpperCase().trim();
+                    if (curr === base) return amount;
+                    let rate = rates[curr] || 1;
+                    return amount / rate;
+                };
+
+                let totalIncBase = 0;
+                let totalExpBase = 0;
+                let totalSavBase = 0;
+
+                txs.forEach(t => {
+                    let baseVal = convertToBase(t.amount, t.curr);
+                    if (t.cat === 'Ingreso') totalIncBase += baseVal;
+                    else if (t.cat === 'Gasto Fijo' || t.cat === 'Gasto Variable') totalExpBase += baseVal;
+                    else if (t.cat === 'Ahorro') totalSavBase += baseVal;
+                });
+
+                let remBase = totalIncBase - totalExpBase - totalSavBase;
+
+                let getConvertedValues = (baseVal) => {
+                    return allCurrencies.map(curr => {
+                        curr = curr.toUpperCase().trim();
+                        if (curr === base) return baseVal;
+                        let rate = rates[curr] || 1;
+                        return baseVal * rate;
+                    });
+                };
+
+                let getDirectSumsByCurrency = (categories) => {
+                    let sums = {};
+                    allCurrencies.forEach(curr => {
+                        sums[curr] = txs.filter(t => categories.includes(t.cat) && t.curr.toUpperCase().trim() === curr)
+                                        .reduce((acc, t) => acc + t.amount, 0);
+                    });
+                    return allCurrencies.map(curr => sums[curr]);
+                };
+
+                let incVals = getConvertedValues(totalIncBase);
+                let expVals = getDirectSumsByCurrency(['Gasto Fijo', 'Gasto Variable']);
+                let savVals = getDirectSumsByCurrency(['Ahorro']);
+                let remVals = getConvertedValues(remBase);
+
+                renderMultiCurrencyCard(`card-${p.id}-inc`, allCurrencies, incVals);
+                renderMultiCurrencyCard(`card-${p.id}-exp`, allCurrencies, expVals, 'var(--danger)');
+                renderMultiCurrencyCard(`card-${p.id}-sav`, allCurrencies, savVals, 'var(--success)');
+                
+                let remColor = remBase < 0 ? 'var(--danger)' : 'var(--success)';
+                renderMultiCurrencyCard(`card-${p.id}-rem`, allCurrencies, remVals, remColor);
+            });
+
+            const exchangeContainer = document.getElementById('exchange-container');
+            const exchangeBullets = document.getElementById('exchange-bullets');
+            const exchangeTotalContainer = document.getElementById('exchange-total-container');
+            
+            exchangeBullets.innerHTML = '';
+            exchangeTotalContainer.innerHTML = '';
+
+            let needsAction = false;
+            let totalBaseEquivalentToChange = 0;
+            let totalExpensesInOtherCurrency = {};
+
+            getActivePeriods().forEach(p => {
+                let txs = appData.periods[p.id] || [];
+                txs.forEach(tx => {
+                    if (['Gasto Fijo', 'Gasto Variable', 'Ahorro'].includes(tx.cat)) {
+                        let c = tx.curr;
+                        if (altCurrencies.includes(c)) {
+                            let totalIncCurr = 0;
+                            getActivePeriods().forEach(hp => {
+                                (appData.periods[hp.id] || []).filter(t => t.cat === 'Ingreso' && t.curr === c).forEach(t => totalIncCurr += t.amount);
+                            });
+                            let totalExpCurr = 0;
+                            getActivePeriods().forEach(hp => {
+                                (appData.periods[hp.id] || []).filter(t => ['Gasto Fijo', 'Gasto Variable', 'Ahorro'].includes(t.cat) && t.curr === c).forEach(t => totalExpCurr += t.amount);
+                            });
+
+                            if (totalExpCurr > totalIncCurr) {
+                                needsAction = true;
+                                let rate = rates[c] || 1;
+                                let baseNeededForThisTx = tx.amount / rate;
+                                totalBaseEquivalentToChange += baseNeededForThisTx;
+
+                                if (!totalExpensesInOtherCurrency[c]) totalExpensesInOtherCurrency[c] = 0;
+                                totalExpensesInOtherCurrency[c] += tx.amount;
+
+                                let needText = appData.config.language === 'es' 
+                                    ? `Necesitas <strong>${formatMoney(tx.amount, c)}</strong> para <strong>"${tx.desc}"</strong>. Ocupas cambiar <strong>${formatMoney(baseNeededForThisTx, base)}</strong>.`
+                                    : `You need <strong>${formatMoney(tx.amount, c)}</strong> for <strong>"${tx.desc}"</strong>. You need to exchange <strong>${formatMoney(baseNeededForThisTx, base)}</strong>.`;
+
+                                exchangeBullets.innerHTML += `<li>${needText}</li>`;
+                            }
+                        }
+                    }
+                });
+            });
+
+            if(needsAction) {
+                let altTotalsText = [];
+                for(let c in totalExpensesInOtherCurrency) {
+                    altTotalsText.push(formatMoney(totalExpensesInOtherCurrency[c], c));
+                }
+
+                let totalLabelText = appData.config.language === 'es' ? 'Total a Cambiar' : 'Total to Exchange';
+
+                exchangeTotalContainer.innerHTML = `
+                    <span>${t('exTotalLbl')} <strong>${altTotalsText.join(' + ')}</strong> | ${totalLabelText} (${base}): <strong>${formatMoney(totalBaseEquivalentToChange, base)}</strong></span>
+                    <button class="btn-copy" onclick="copyText('${totalBaseEquivalentToChange.toFixed(2)}')">📋 ${t('btnCopy')} ${formatMoney(totalBaseEquivalentToChange, base)}</button>
+                `;
+                exchangeContainer.style.display = 'block';
+            } else {
+                exchangeContainer.style.display = 'none';
+            }
+        }
+
+        function renderMultiCurrencyCard(containerId, currencies, values, colorStyle = 'inherit') {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+            
+            currencies.forEach((curr, index) => {
+                let val = values[index] || 0;
+                container.innerHTML += `
+                    <div class="card-row">
+                        <span class="card-currency-label">${curr}</span>
+                        <span class="card-amount" style="color: ${colorStyle}">${formatMoney(val, curr)}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function formatMoney(amount, curr) {
+            curr = curr.toUpperCase().trim();
+            const symbols = {
+                'USD': '$',
+                'CRC': '₡',
+                'EUR': '€',
+                'GBP': '£',
+                'CAD': 'CA$',
+                'MXN': 'MX$'
+            };
+            
+            let symbol = symbols[curr] || curr + ' ';
+            let formattedNumber = new Intl.NumberFormat('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(amount);
+
+            return `${symbol}${formattedNumber}`;
+        }
+        
+        function copyText(val) {
+            let alertText = appData.config.language === 'es' ? `¡Copiado al portapapeles: ${val}!` : `Copied to clipboard: ${val}!`;
+            navigator.clipboard.writeText(val).then(() => alert(alertText));
+        }
+
+        init();
+    </script>
+</body>
+</html>
