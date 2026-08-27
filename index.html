@@ -1120,7 +1120,7 @@
                     let bccrRes = await fetch('https://apis.gometa.org/tdc/tdc.json');
                     let bccrData = await bccrRes.json();
                     if (bccrData && bccrData.venta) {
-                        bccrSale = parseFloat(bccrData.venta);
+                        bccrSale = parseFloat(bccrData.venta); // Ej: 505.00 colones por dólar
                     }
                 } catch (err) {
                     console.warn("No se pudo conectar con BCCR API, usando respaldo global.", err);
@@ -1138,6 +1138,7 @@
                 }
 
                 if (base === 'CRC' && bccrSale) {
+                    // Si la base es CRC, 1 CRC vale (1 / bccrSale) USD
                     ratesMap['USD'] = parseFloat((1 / bccrSale).toFixed(6));
                     appData.config.altCurrencies.forEach(alt => {
                         alt = alt.trim().toUpperCase();
@@ -1148,6 +1149,7 @@
                         }
                     });
                 } else if (base === 'USD' && bccrSale) {
+                    // Si la base es USD, 1 USD vale bccrSale CRC
                     ratesMap['CRC'] = bccrSale;
                     appData.config.altCurrencies.forEach(alt => {
                         alt = alt.trim().toUpperCase();
@@ -1200,14 +1202,14 @@
         function renderRateInputs() {
             const container = document.getElementById('rates-container');
             const base = appData.config.baseCurrency;
-            let currenciesToShow = ['USD', ...appData.config.altCurrencies].map(c => c.trim().toUpperCase());
+            let currenciesToShow = ['USD', 'CRC', ...appData.config.altCurrencies].map(c => c.trim().toUpperCase());
             currenciesToShow = [...new Set(currenciesToShow)].filter(c => c !== base);
 
             container.innerHTML = `<label style="display: block; font-size: 12px; color: var(--text-light); margin-bottom: 6px;">${appData.config.language === 'es' ? 'Tasas de Cambio (1 ' + base + ' = X Moneda):' : 'Exchange Rates (1 ' + base + ' = X Currency):'}</label>`;
             
             currenciesToShow.forEach(alt => {
                 if(!appData.config.rates[alt]) {
-                    appData.config.rates[alt] = (alt === 'USD' && base === 'CRC') ? 0.0022 : 1.00;
+                    appData.config.rates[alt] = (base === 'CRC' && alt === 'USD') ? 0.00198 : ((base === 'USD' && alt === 'CRC') ? 505.00 : 1.00);
                 }
                 
                 container.innerHTML += `
@@ -1335,7 +1337,7 @@
             }
         }
 
-        // --- Core Multi-Currency Conversion Engine Robust ---
+        // --- Core Multi-Currency Conversion Engine Robust & Cross-Safe ---
         function convertCurrency(amount, fromCurr, toCurr, base, rates) {
             fromCurr = fromCurr.toUpperCase().trim();
             toCurr = toCurr.toUpperCase().trim();
@@ -1343,26 +1345,52 @@
 
             if (fromCurr === toCurr) return amount;
 
+            // Obtener factor de conversión de 'fromCurr' hacia la moneda Base
             let rateFrom = 1.00;
             if (fromCurr !== base) {
-                rateFrom = rates[fromCurr];
-                if (!rateFrom || rateFrom <= 0) {
-                    let invRate = rates[base];
-                    if (fromCurr === base) rateFrom = 1.00;
-                    else rateFrom = invRate ? (1 / invRate) : 1.00;
+                if (rates[fromCurr] && rates[fromCurr] > 0) {
+                    rateFrom = rates[fromCurr];
+                } else if (rates[base] && rates[base] > 0) {
+                    // Auto-inversión inteligente si el usuario guardó la tasa al revés
+                    rateFrom = 1.00 / rates[base];
+                } else if (fromCurr === 'USD' && base === 'CRC') {
+                    rateFrom = 0.00198; // Respaldo ~505
+                } else if (fromCurr === 'CRC' && base === 'USD') {
+                    rateFrom = 505.00;
                 }
             }
 
-            let amountInBase = amount / (rateFrom || 1.00);
-
-            if (toCurr === base) return amountInBase;
-
-            let rateTo = rates[toCurr];
-            if (!rateTo || rateTo <= 0) {
-                rateTo = 1.00;
+            // Convertir transacción a Base
+            let amountInBase = amount * (fromCurr === base ? 1.00 : (fromCurr === 'USD' && base === 'CRC' && rateFrom < 1 ? (1 / rateFrom) : (rates[fromCurr] < 1 ? (1 / rates[fromCurr]) : rateFrom))); 
+            // Nota de blindaje: Si la tasa es menor a 1 (ej. 1 CRC = 0.00198 USD), multiplicar por el inverso o dividir adecuadamente:
+            let correctedAmountInBase = 0;
+            if (fromCurr === base) {
+                correctedAmountInBase = amount;
+            } else {
+                let r = rates[fromCurr];
+                if (r && r > 0) {
+                    // Si 1 Base = X MonedaExtranjera (ej: 1 USD = 505 CRC), entonces MontoCRC / 505 = MontoUSD
+                    // Si 1 Base = 0.00198 USD (ej: 1 CRC = 0.00198 USD), entonces MontoUSD / 0.00198 = MontoCRC
+                    correctedAmountInBase = r < 1 ? (amount / r) : (amount * r); // Ajuste dinámico inteligente
+                } else {
+                    correctedAmountInBase = amount;
+                }
             }
 
-            return amountInBase * rateTo;
+            // Redirigir a Base final
+            if (toCurr === base) {
+                // Ajuste preciso para evitar inversión doble
+                let directRate = rates[fromCurr];
+                if(fromCurr !== base && directRate) {
+                    return directRate < 1 ? (amount / directRate) : (amount * directRate);
+                }
+                return amount;
+            }
+
+            // Si se requiere convertir de Base a otra moneda extranjera destino
+            let rateTo = rates[toCurr] || 1.00;
+            let finalBaseVal = rates[fromCurr] < 1 ? (amount / rates[fromCurr]) : (amount * rates[fromCurr]);
+            return rateTo < 1 ? (finalBaseVal * rateTo) : (finalBaseVal / rateTo);
         }
 
         function renderTables() {
@@ -1523,7 +1551,6 @@
             let totalBaseEquivalentToChange = 0;
             let totalExpensesInOtherCurrency = {};
 
-            // EVALUAR EXCLUSIVAMENTE EL PERIODO SELECCIONADO EN EL FILTRO (Sin mezclar periodos)
             let periodsToCheck = getActivePeriods().filter(p => p.id === currentExchangeFilter);
 
             periodsToCheck.forEach(p => {
